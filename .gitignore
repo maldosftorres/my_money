@@ -1,0 +1,230 @@
+# ==============================================================================
+# 📦 Dependencies & Package Managers
+# ==============================================================================
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# ==============================================================================
+# 🏗️ Build & Distribution
+# ==============================================================================
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+.cache/
+.parcel-cache/
+.turbo/
+
+# ==============================================================================
+# 🔐 Environment & Secrets
+# ==============================================================================
+.env
+.env.*
+!.env.example
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.staging.local
+
+# Secrets & API Keys
+secrets/
+config/secrets.json
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ==============================================================================
+# 📊 Logs & Debugging
+# ==============================================================================
+logs/
+*.log
+*.log.*
+pids/
+*.pid
+*.seed
+*.pid.lock
+lib-cov/
+coverage/
+.nyc_output/
+.coverage/
+*.lcov
+.mocha/
+
+# ==============================================================================
+# 💻 IDEs & Editors
+# ==============================================================================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+.classpath
+
+# ==============================================================================
+# 🖥️ Operating Systems
+# ==============================================================================
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ==============================================================================
+# 🗄️ Database & Storage
+# ==============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+storage/
+uploads/
+tmp/
+temp/
+
+# ==============================================================================
+# 🧪 Testing & Coverage
+# ==============================================================================
+# Test results
+test-results/
+playwright-report/
+test-output/
+e2e-results/
+.nyc_output/
+coverage/
+*.lcov
+.jest/
+
+# ==============================================================================
+# 📱 Mobile Development
+# ==============================================================================
+# React Native
+.expo/
+.expo-shared/
+ios/
+android/
+
+# ==============================================================================
+# 🔧 Tools & Utilities
+# ==============================================================================
+# Storybook
+storybook-static/
+
+# ESLint
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Prettier
+.prettiercache
+
+# Webpack
+.webpack/
+
+# Rollup
+.rollup.cache/
+
+# Vite
+.vite/
+
+# SWC
+.swc/
+
+# ==============================================================================
+# 🚀 Deployment & CI/CD
+# ==============================================================================
+.vercel
+.netlify
+.railway
+.render
+docker-compose.override.yml
+.docker/
+
+# ==============================================================================
+# 💰 MyMoney Specific
+# ==============================================================================
+# Application logs
+logs/app.log
+logs/error.log
+logs/access.log
+
+# Database backups
+backups/
+*.sql.backup
+*.dump
+
+# Reports & exports
+exports/
+reports/
+*.csv
+*.xlsx
+*.pdf
+
+# User uploads
+uploads/receipts/
+uploads/documents/
+
+# ==============================================================================
+# 📝 Documentation Build
+# ==============================================================================
+docs/build/
+.docusaurus/
+
+# ==============================================================================
+# 🎯 Temporary & Cache Files
+# ==============================================================================
+.cache/
+.tmp/
+.temp/
+*.tmp
+*.temp
+*.local
+.next/cache/
