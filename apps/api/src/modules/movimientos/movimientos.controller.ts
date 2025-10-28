@@ -42,9 +42,14 @@ export class MovimientosController {
         @Query('cuentaId') cuentaId?: string,
         @Query('tipo') tipo?: string,
         @Query('mes') mes?: string,
+        @Query('fechaInicio') fechaInicio?: string,
+        @Query('fechaFin') fechaFin?: string,
+        @Query('busqueda') busqueda?: string,
+        @Query('montoMin') montoMin?: string,
+        @Query('montoMax') montoMax?: string,
     ): Promise<MovimientoResponse[]> {
         const ctaId = cuentaId ? parseInt(cuentaId) : undefined;
-        return this.movimientosService.obtenerTodos(usuarioId, ctaId, tipo, mes);
+        return this.movimientosService.obtenerTodos(usuarioId, ctaId, tipo, mes, fechaInicio, fechaFin, busqueda, montoMin, montoMax);
     }
 
     @Get('ultimos/:usuarioId')

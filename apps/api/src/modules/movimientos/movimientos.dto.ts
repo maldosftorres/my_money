@@ -1,7 +1,12 @@
 import { IsString, IsDecimal, IsInt, IsOptional, IsDateString, IsIn } from 'class-validator';
 
 export enum TipoMovimiento {
+  INGRESO = 'INGRESO',
+  GASTO = 'GASTO',
   TRANSFERENCIA = 'TRANSFERENCIA',
+  TRANSFERENCIA_ENTRADA = 'TRANSFERENCIA_ENTRADA',
+  TRANSFERENCIA_SALIDA = 'TRANSFERENCIA_SALIDA',
+  PAGO_TARJETA = 'PAGO_TARJETA',
   DEPOSITO = 'DEPOSITO',
   RETIRO = 'RETIRO',
   DEBITO = 'DEBITO',
@@ -20,7 +25,7 @@ export class CrearMovimientoDto {
   @IsInt()
   cuenta_destino_id?: number;
 
-  @IsIn(['TRANSFERENCIA', 'DEPOSITO', 'RETIRO', 'DEBITO', 'CREDITO'])
+  @IsIn(['INGRESO', 'GASTO', 'TRANSFERENCIA', 'TRANSFERENCIA_ENTRADA', 'TRANSFERENCIA_SALIDA', 'PAGO_TARJETA', 'DEPOSITO', 'RETIRO', 'DEBITO', 'CREDITO'])
   tipo: TipoMovimiento;
 
   @IsDecimal({ decimal_digits: '2' })
@@ -71,7 +76,7 @@ export class ActualizarMovimientoDto {
   cuenta_destino_id?: number;
 
   @IsOptional()
-  @IsIn(['TRANSFERENCIA', 'DEPOSITO', 'RETIRO', 'DEBITO', 'CREDITO'])
+  @IsIn(['INGRESO', 'GASTO', 'TRANSFERENCIA', 'TRANSFERENCIA_ENTRADA', 'TRANSFERENCIA_SALIDA', 'PAGO_TARJETA', 'DEPOSITO', 'RETIRO', 'DEBITO', 'CREDITO'])
   tipo?: TipoMovimiento;
 
   @IsOptional()

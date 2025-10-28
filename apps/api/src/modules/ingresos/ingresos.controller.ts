@@ -28,8 +28,9 @@ export class IngresosController {
     async obtenerTodos(
         @Query('usuarioId', ParseIntPipe) usuarioId: number,
         @Query('mes') mes?: string,
+        @Query('estado') estado?: string,
     ): Promise<IngresoResponse[]> {
-        return this.ingresosService.obtenerTodos(usuarioId, mes);
+        return this.ingresosService.obtenerTodos(usuarioId, mes, estado);
     }
 
     @Get('total/:usuarioId')
@@ -55,13 +56,34 @@ export class IngresosController {
     }
 
     @Put(':id/pagar')
-    async marcarComoPagado(@Param('id', ParseIntPipe) id: number): Promise<IngresoResponse> {
-        return this.ingresosService.marcarComoPagado(id);
+    async marcarComoPagado(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() body?: { fechaCobro?: string }
+    ): Promise<IngresoResponse> {
+        return this.ingresosService.marcarComoPagado(id, body?.fechaCobro);
+    }
+
+    @Get('recurrentes/:usuarioId')
+    async obtenerIngresosRecurrentes(
+        @Param('usuarioId', ParseIntPipe) usuarioId: number
+    ): Promise<IngresoResponse[]> {
+        return this.ingresosService.obtenerIngresosRecurrentes(usuarioId);
     }
 
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
     async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {
         return this.ingresosService.eliminar(id);
+    }
+
+    @Delete(':id/recurrentes')
+    async eliminarIngresosRecurrentes(
+        @Param('id', ParseIntPipe) id: number
+    ): Promise<{ eliminados: number; message: string }> {
+        const result = await this.ingresosService.eliminarIngresosRecurrentes(id);
+        return {
+            ...result,
+            message: `Se eliminaron ${result.eliminados} ingresos recurrentes pendientes`
+        };
     }
 }

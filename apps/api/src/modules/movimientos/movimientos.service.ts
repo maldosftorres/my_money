@@ -76,10 +76,19 @@ export class MovimientosService {
         });
     }
 
-    async obtenerTodos(usuarioId: number, cuentaId?: number, tipo?: string, mes?: string): Promise<MovimientoResponse[]> {
+    async obtenerTodos(usuarioId: number, cuentaId?: number, tipo?: string, mes?: string, fechaInicio?: string, fechaFin?: string, busqueda?: string, montoMin?: string, montoMax?: string): Promise<MovimientoResponse[]> {
         let query = `
             SELECT 
-                m.*,
+                m.id,
+                m.usuario_id,
+                m.cuenta_origen_id,
+                m.cuenta_destino_id,
+                m.tipo,
+                m.monto,
+                DATE_FORMAT(m.fecha, '%Y-%m-%d') as fecha,
+                m.descripcion,
+                DATE_FORMAT(m.creado_en, '%Y-%m-%d %H:%i:%s') as creado_en,
+                DATE_FORMAT(m.actualizado_en, '%Y-%m-%d %H:%i:%s') as actualizado_en,
                 co.nombre as cuenta_origen_nombre,
                 cd.nombre as cuenta_destino_nombre
             FROM movimientos m
@@ -104,6 +113,31 @@ export class MovimientosService {
             params.push(mes);
         }
 
+        if (fechaInicio) {
+            query += ` AND m.fecha >= ?`;
+            params.push(fechaInicio);
+        }
+
+        if (fechaFin) {
+            query += ` AND m.fecha <= ?`;
+            params.push(fechaFin);
+        }
+
+        if (busqueda) {
+            query += ` AND m.descripcion LIKE ?`;
+            params.push(`%${busqueda}%`);
+        }
+
+        if (montoMin) {
+            query += ` AND m.monto >= ?`;
+            params.push(parseFloat(montoMin));
+        }
+
+        if (montoMax) {
+            query += ` AND m.monto <= ?`;
+            params.push(parseFloat(montoMax));
+        }
+
         query += ` ORDER BY m.fecha DESC, m.creado_en DESC`;
 
         const rows = await this.db.query<QueryResult>(query, params);
@@ -113,7 +147,16 @@ export class MovimientosService {
     async obtenerPorId(id: number): Promise<MovimientoResponse> {
         const rows = await this.db.query<QueryResult>(
             `SELECT 
-                m.*,
+                m.id,
+                m.usuario_id,
+                m.cuenta_origen_id,
+                m.cuenta_destino_id,
+                m.tipo,
+                m.monto,
+                DATE_FORMAT(m.fecha, '%Y-%m-%d') as fecha,
+                m.descripcion,
+                DATE_FORMAT(m.creado_en, '%Y-%m-%d %H:%i:%s') as creado_en,
+                DATE_FORMAT(m.actualizado_en, '%Y-%m-%d %H:%i:%s') as actualizado_en,
                 co.nombre as cuenta_origen_nombre,
                 cd.nombre as cuenta_destino_nombre
             FROM movimientos m
@@ -184,7 +227,16 @@ export class MovimientosService {
         // Obtener movimientos
         let query = `
             SELECT 
-                m.*,
+                m.id,
+                m.usuario_id,
+                m.cuenta_origen_id,
+                m.cuenta_destino_id,
+                m.tipo,
+                m.monto,
+                DATE_FORMAT(m.fecha, '%Y-%m-%d') as fecha,
+                m.descripcion,
+                DATE_FORMAT(m.creado_en, '%Y-%m-%d %H:%i:%s') as creado_en,
+                DATE_FORMAT(m.actualizado_en, '%Y-%m-%d %H:%i:%s') as actualizado_en,
                 co.nombre as cuenta_origen_nombre,
                 cd.nombre as cuenta_destino_nombre
             FROM movimientos m
@@ -257,7 +309,16 @@ export class MovimientosService {
     async obtenerUltimosMovimientos(usuarioId: number, limite: number = 10): Promise<MovimientoResponse[]> {
         const query = `
             SELECT 
-                m.*,
+                m.id,
+                m.usuario_id,
+                m.cuenta_origen_id,
+                m.cuenta_destino_id,
+                m.tipo,
+                m.monto,
+                DATE_FORMAT(m.fecha, '%Y-%m-%d') as fecha,
+                m.descripcion,
+                DATE_FORMAT(m.creado_en, '%Y-%m-%d %H:%i:%s') as creado_en,
+                DATE_FORMAT(m.actualizado_en, '%Y-%m-%d %H:%i:%s') as actualizado_en,
                 co.nombre as cuenta_origen_nombre,
                 cd.nombre as cuenta_destino_nombre
             FROM movimientos m

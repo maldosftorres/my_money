@@ -73,7 +73,13 @@ export class GastosFijosController {
     }
 
     @Put(':id/pagar')
-    async marcarComoPagado(@Param('id', ParseIntPipe) id: number): Promise<GastoFijoResponse> {
+    async marcarComoPagado(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() body?: { fechaPago?: string }
+    ): Promise<GastoFijoResponse> {
+        if (body?.fechaPago) {
+            return this.gastosFijosService.marcarComoPagadoConFecha(id, body.fechaPago);
+        }
         return this.gastosFijosService.marcarComoPagado(id);
     }
 
@@ -81,5 +87,16 @@ export class GastosFijosController {
     @HttpCode(HttpStatus.NO_CONTENT)
     async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {
         return this.gastosFijosService.eliminar(id);
+    }
+
+    @Delete(':id/recurrentes')
+    async eliminarGastosRecurrentes(
+        @Param('id', ParseIntPipe) id: number
+    ): Promise<{ eliminados: number; message: string }> {
+        const result = await this.gastosFijosService.eliminarGastosRecurrentes(id);
+        return {
+            ...result,
+            message: `Se eliminaron ${result.eliminados} gastos fijos recurrentes pendientes`
+        };
     }
 }

@@ -1,0 +1,24 @@
+# Este es un archivo de ejemplo que muestra qué tipos de archivos deben ser ignorados
+# Copiar como .gitignore si es necesario
+
+# Variables de entorno - NUNCA commitear estas
+.env
+.env.local
+.env.development
+.env.production
+apps/api/.env
+apps/web/.env
+
+# Credenciales de base de datos
+config/database.json
+db-credentials.json
+
+# Certificados SSL
+*.pem
+*.key
+*.crt
+
+# Logs con información sensible
+logs/app.log
+logs/database.log
+logs/auth.log

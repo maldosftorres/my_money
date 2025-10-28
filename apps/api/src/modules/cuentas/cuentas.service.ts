@@ -7,7 +7,7 @@ export class CuentasService {
   constructor(private databaseService: DatabaseService) {}
 
   async crear(crearCuentaDto: CrearCuentaDto): Promise<CuentaResponse> {
-    const result = await this.databaseService.execute(
+    const result = await this.databaseService.query(
       `INSERT INTO cuentas (usuario_id, nombre, tipo, saldo_inicial, moneda, activa)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
@@ -18,7 +18,7 @@ export class CuentasService {
         crearCuentaDto.moneda,
         crearCuentaDto.activa,
       ]
-    );
+    ) as any;
 
     return this.obtenerPorId(result.insertId);
   }
@@ -32,7 +32,7 @@ export class CuentasService {
        ORDER BY nombre`,
       [usuarioId]
     );
-    return result as CuentaResponse[];
+    return Array.isArray(result) ? result as CuentaResponse[] : [result].filter(Boolean) as CuentaResponse[];
   }
 
   async obtenerActivas(usuarioId: number): Promise<CuentaResponse[]> {
@@ -44,11 +44,11 @@ export class CuentasService {
        ORDER BY nombre`,
       [usuarioId]
     );
-    return result as CuentaResponse[];
+    return Array.isArray(result) ? result as CuentaResponse[] : [result].filter(Boolean) as CuentaResponse[];
   }
 
   async obtenerPorId(id: number): Promise<CuentaResponse> {
-    const cuentas = await this.databaseService.query(
+    const result = await this.databaseService.query(
       `SELECT id, usuario_id, nombre, tipo, saldo_inicial, moneda, activa,
               creado_en, actualizado_en
        FROM cuentas 
@@ -56,6 +56,8 @@ export class CuentasService {
       [id]
     );
 
+    const cuentas = Array.isArray(result) ? result : [result].filter(Boolean);
+    
     if (cuentas.length === 0) {
       throw new Error('Cuenta no encontrada');
     }
@@ -98,7 +100,7 @@ export class CuentasService {
 
     valores.push(id);
 
-    await this.databaseService.execute(
+    await this.databaseService.query(
       `UPDATE cuentas SET ${campos.join(', ')} WHERE id = ?`,
       valores
     );
@@ -107,7 +109,7 @@ export class CuentasService {
   }
 
   async eliminar(id: number): Promise<void> {
-    await this.databaseService.execute(
+    await this.databaseService.query(
       'DELETE FROM cuentas WHERE id = ?',
       [id]
     );

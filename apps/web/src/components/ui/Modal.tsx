@@ -49,24 +49,25 @@ export const Modal: React.FC<ModalProps> = ({
             <div className="flex min-h-screen items-center justify-center p-4">
                 {/* Backdrop */}
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+                    className="fixed inset-0 bg-black/50 dark:bg-black/75 backdrop-blur-sm transition-all duration-200"
                     onClick={onClose}
                 />
 
                 {/* Modal */}
                 <div className={cn(
-                    'relative bg-white rounded-lg shadow-xl w-full transform transition-all',
+                    'relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl dark:shadow-gray-900/50 w-full transform transition-all duration-200',
+                    'border border-gray-200 dark:border-gray-600 ring-1 ring-black/5 dark:ring-white/10',
                     sizeClasses[size]
                 )}>
                     {/* Header */}
                     {title && (
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+                        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200">
+                            <h3 className="text-base font-semibold text-gray-900 dark:text-white transition-colors duration-200">{title}</h3>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={onClose}
-                                className="!p-1 hover:bg-gray-100 rounded-full"
+                                className="!p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors duration-200"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

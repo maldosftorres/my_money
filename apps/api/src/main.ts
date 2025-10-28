@@ -3,18 +3,25 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './core/error.filter';
 import { EnvService } from './core/env.service';
+import { Utf8Interceptor } from './core/utf8.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   const envService = app.get(EnvService);
   
-  // Configurar CORS
+  // Configurar CORS con soporte UTF-8
   app.enableCors({
     origin: ['http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
+  });
+
+  // Configurar middleware para UTF-8
+  app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
   });
 
   // Configurar prefijo global de la API
@@ -35,11 +42,11 @@ async function bootstrap() {
   // Configurar filtro global de excepciones
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // Configurar interceptor UTF-8
+  app.useGlobalInterceptors(new Utf8Interceptor());
+
   const port = envService.port;
   await app.listen(port);
-  
-  console.log(`🚀 API ejecutándose en: http://localhost:${port}/${envService.apiPrefix}`);
-  console.log(`📊 Ambiente: ${envService.nodeEnv}`);
 }
 
 bootstrap();

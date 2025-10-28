@@ -1,87 +1,99 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { useAuth } from '../contexts/AuthContext';
+import { Building2, DollarSign, CheckCircle, Edit, Trash2 } from 'lucide-react';
+import { notifications } from '../utils/notifications';
 
 interface Cuenta {
     id: number;
+    usuario_id: number;
     nombre: string;
-    tipo: 'ahorro' | 'corriente' | 'efectivo' | 'inversion';
-    saldo_inicial: number;
-    saldo_actual: number;
+    tipo: 'EFECTIVO' | 'BANCO' | 'TARJETA' | 'AHORRO' | 'OTRA';
+    saldo_inicial: string;
+    saldo_actual?: number;
     moneda: string;
     activa: boolean;
     creado_en: string;
+    actualizado_en: string;
 }
 
-// Datos simulados
-const cuentasData: Cuenta[] = [
-    {
-        id: 1,
-        nombre: 'Cuenta Corriente Principal',
-        tipo: 'corriente',
-        saldo_inicial: 50000,
-        saldo_actual: 45750,
-        moneda: 'CLP',
-        activa: true,
-        creado_en: '2024-01-15'
-    },
-    {
-        id: 2,
-        nombre: 'Cuenta de Ahorros',
-        tipo: 'ahorro',
-        saldo_inicial: 100000,
-        saldo_actual: 125300,
-        moneda: 'CLP',
-        activa: true,
-        creado_en: '2024-01-20'
-    },
-    {
-        id: 3,
-        nombre: 'Billetera Efectivo',
-        tipo: 'efectivo',
-        saldo_inicial: 20000,
-        saldo_actual: 15500,
-        moneda: 'CLP',
-        activa: true,
-        creado_en: '2024-02-01'
-    }
-];
+interface FormData {
+    nombre: string;
+    tipo: Cuenta['tipo'];
+    saldo_inicial: string;
+    moneda: string;
+}
 
 export default function Cuentas() {
-    const [cuentas] = useState<Cuenta[]>(cuentasData);
+    const { user } = useAuth();
+    const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedCuenta, setSelectedCuenta] = useState<Cuenta | null>(null);
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         nombre: '',
-        tipo: 'corriente' as Cuenta['tipo'],
+        tipo: 'BANCO',
         saldo_inicial: '',
-        moneda: 'CLP'
+        moneda: 'Gs'
     });
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-CL', {
-            style: 'currency',
-            currency: 'CLP'
-        }).format(amount);
+    useEffect(() => {
+        if (user) {
+            loadCuentas();
+        }
+    }, [user]);
+
+    const loadCuentas = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch(`/api/v1/cuentas?usuario_id=${user?.id}`);
+            if (!response.ok) {
+                throw new Error('Error al cargar las cuentas');
+            }
+            const data = await response.json();
+            // Simplificar: usar solo saldo inicial por ahora
+            const cuentasSimples = data.map((cuenta: Cuenta) => ({
+                ...cuenta,
+                saldo_actual: parseFloat(cuenta.saldo_inicial)
+            }));
+            setCuentas(cuentasSimples);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al cargar cuentas');
+            setCuentas([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatCurrency = (amount: number | string) => {
+        const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+        return new Intl.NumberFormat('es-PY', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(numAmount) + ' Gs';
     };
 
     const getTipoLabel = (tipo: string) => {
         const labels = {
-            'corriente': 'Corriente',
-            'ahorro': 'Ahorros',
-            'efectivo': 'Efectivo',
-            'inversion': 'Inversión'
+            'EFECTIVO': 'Efectivo',
+            'BANCO': 'Banco',
+            'TARJETA': 'Tarjeta',
+            'AHORRO': 'Ahorro',
+            'OTRA': 'Otra'
         };
         return labels[tipo as keyof typeof labels] || tipo;
     };
 
     const getTipoColor = (tipo: string) => {
         const colors = {
-            'corriente': 'bg-blue-100 text-blue-800',
-            'ahorro': 'bg-green-100 text-green-800',
-            'efectivo': 'bg-yellow-100 text-yellow-800',
-            'inversion': 'bg-purple-100 text-purple-800'
+            'EFECTIVO': 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+            'BANCO': 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+            'TARJETA': 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
+            'AHORRO': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+            'OTRA': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
         };
-        return colors[tipo as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+        return colors[tipo as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     };
 
     const handleEdit = (cuenta: Cuenta) => {
@@ -89,7 +101,7 @@ export default function Cuentas() {
         setFormData({
             nombre: cuenta.nombre,
             tipo: cuenta.tipo,
-            saldo_inicial: cuenta.saldo_inicial.toString(),
+            saldo_inicial: cuenta.saldo_inicial,
             moneda: cuenta.moneda
         });
         setIsModalOpen(true);
@@ -99,50 +111,120 @@ export default function Cuentas() {
         setSelectedCuenta(null);
         setFormData({
             nombre: '',
-            tipo: 'corriente',
+            tipo: 'BANCO',
             saldo_inicial: '',
-            moneda: 'CLP'
+            moneda: 'Gs'
         });
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Aquí se haría la llamada a la API
-        console.log('Guardando cuenta:', formData);
-        setIsModalOpen(false);
+        
+        try {
+            notifications.loading(selectedCuenta ? 'Actualizando cuenta...' : 'Creando cuenta...');
+            
+            const payload = {
+                ...formData,
+                usuario_id: user?.id
+            };
+
+            let response;
+            if (selectedCuenta) {
+                response = await fetch(`/api/v1/cuentas/${selectedCuenta.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+            } else {
+                response = await fetch('/api/v1/cuentas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error('Error al guardar la cuenta');
+            }
+
+            notifications.close();
+            notifications.toast.success(
+                selectedCuenta ? 'Cuenta actualizada correctamente' : 'Cuenta creada correctamente'
+            );
+
+            await loadCuentas();
+            setIsModalOpen(false);
+        } catch (err) {
+            notifications.close();
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al guardar cuenta');
+        }
     };
 
-    const totalSaldo = cuentas.reduce((sum, cuenta) => sum + cuenta.saldo_actual, 0);
+    const handleDeleteCuenta = async (cuenta: Cuenta) => {
+        const result = await notifications.confirmDelete(`la cuenta "${cuenta.nombre}"`);
+        
+        if (result.isConfirmed) {
+            try {
+                notifications.loading('Eliminando cuenta...');
+                
+                const response = await fetch(`/api/v1/cuentas/${cuenta.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al eliminar la cuenta');
+                }
+
+                notifications.close();
+                notifications.toast.success('Cuenta eliminada correctamente');
+                await loadCuentas();
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, 'Error al eliminar cuenta');
+            }
+        }
+    };
+
+    const totalSaldo = cuentas.reduce((sum, cuenta) => sum + (cuenta.saldo_actual || 0), 0);
     const cuentasActivas = cuentas.filter(cuenta => cuenta.activa).length;
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Cuentas</h1>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 transition-colors duration-200">
+                Cuentas
+            </h1>
+                </div>
                 <Button onClick={handleNew}>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
                     Nueva Cuenta
                 </Button>
             </div>
 
             {/* Resumen */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Saldo Total</p>
-                            <p className="text-2xl font-semibold text-gray-900">{formatCurrency(totalSaldo)}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Saldo Total</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalSaldo)}</p>
                         </div>
                     </div>
                 </Card>
@@ -150,15 +232,13 @@ export default function Cuentas() {
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Cuentas Activas</p>
-                            <p className="text-2xl font-semibold text-gray-900">{cuentasActivas}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Cuentas Activas</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{cuentasActivas}</p>
                         </div>
                     </div>
                 </Card>
@@ -166,15 +246,13 @@ export default function Cuentas() {
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
+                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Total Cuentas</p>
-                            <p className="text-2xl font-semibold text-gray-900">{cuentas.length}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Cuentas</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{cuentas.length}</p>
                         </div>
                     </div>
                 </Card>
@@ -186,58 +264,66 @@ export default function Cuentas() {
                     <CardTitle>Mis Cuentas</CardTitle>
                 </CardHeader>
 
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Nombre</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Saldo Inicial</TableHead>
-                            <TableHead>Saldo Actual</TableHead>
-                            <TableHead>Diferencia</TableHead>
-                            <TableHead>Estado</TableHead>
-                            <TableHead>Acciones</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {cuentas.map((cuenta) => {
-                            const diferencia = cuenta.saldo_actual - cuenta.saldo_inicial;
-                            return (
-                                <TableRow key={cuenta.id}>
-                                    <TableCell className="font-medium">{cuenta.nombre}</TableCell>
-                                    <TableCell>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTipoColor(cuenta.tipo)}`}>
-                                            {getTipoLabel(cuenta.tipo)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>{formatCurrency(cuenta.saldo_inicial)}</TableCell>
-                                    <TableCell className="font-semibold">{formatCurrency(cuenta.saldo_actual)}</TableCell>
-                                    <TableCell className={diferencia >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                        {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cuenta.activa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {cuenta.activa ? 'Activa' : 'Inactiva'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex space-x-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleEdit(cuenta)}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                </Table>
+                {cuentas.length === 0 ? (
+                    <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400">No hay cuentas registradas</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">Crea tu primera cuenta para comenzar</p>
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Tipo</TableHead>
+                                <TableHead>Saldo</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead>Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {cuentas.map((cuenta) => {
+                                const saldoInicial = parseFloat(cuenta.saldo_inicial);
+                                return (
+                                    <TableRow key={cuenta.id}>
+                                        <TableCell className="font-medium">{cuenta.nombre}</TableCell>
+                                        <TableCell>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTipoColor(cuenta.tipo)}`}>
+                                                {getTipoLabel(cuenta.tipo)}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="font-semibold">{formatCurrency(saldoInicial)}</TableCell>
+                                        <TableCell>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200 ${cuenta.activa ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                                }`}>
+                                                {cuenta.activa ? 'Activa' : 'Inactiva'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex space-x-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEdit(cuenta)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteCuenta(cuenta)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                )}
             </Card>
 
             {/* Modal */}
@@ -257,19 +343,20 @@ export default function Cuentas() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
                             Tipo de cuenta
                         </label>
                         <select
                             value={formData.tipo}
                             onChange={(e) => setFormData({ ...formData, tipo: e.target.value as Cuenta['tipo'] })}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
                             required
                         >
-                            <option value="corriente">Corriente</option>
-                            <option value="ahorro">Ahorros</option>
-                            <option value="efectivo">Efectivo</option>
-                            <option value="inversion">Inversión</option>
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="BANCO">Banco</option>
+                            <option value="TARJETA">Tarjeta</option>
+                            <option value="AHORRO">Ahorro</option>
+                            <option value="OTRA">Otra</option>
                         </select>
                     </div>
 

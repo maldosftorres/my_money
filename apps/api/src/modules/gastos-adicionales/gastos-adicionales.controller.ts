@@ -31,12 +31,13 @@ export class GastosAdicionalesController {
 
     @Get()
     async obtenerTodos(
-        @Query('usuarioId', ParseIntPipe) usuarioId: number,
+        @Query('usuarioId') usuarioId?: string,
         @Query('mes') mes?: string,
         @Query('categoriaId') categoriaId?: string,
     ): Promise<GastoAdicionalResponse[]> {
+        const userId = usuarioId ? parseInt(usuarioId) : 1; // Defaultear a usuario 1 por ahora
         const catId = categoriaId ? parseInt(categoriaId) : undefined;
-        return this.gastosAdicionalesService.obtenerTodos(usuarioId, mes, catId);
+        return this.gastosAdicionalesService.obtenerTodos(userId, mes, catId);
     }
 
     @Get('distribucion/:usuarioId')
@@ -84,6 +85,16 @@ export class GastosAdicionalesController {
         @Body() actualizarGastoAdicionalDto: ActualizarGastoAdicionalDto,
     ): Promise<GastoAdicionalResponse> {
         return this.gastosAdicionalesService.actualizar(id, actualizarGastoAdicionalDto);
+    }
+
+    @Put(':id/marcar-pagado')
+    async marcarComoPagado(@Param('id', ParseIntPipe) id: number): Promise<GastoAdicionalResponse> {
+        return this.gastosAdicionalesService.marcarComoPagado(id);
+    }
+
+    @Put(':id/marcar-pendiente')
+    async marcarComoPendiente(@Param('id', ParseIntPipe) id: number): Promise<GastoAdicionalResponse> {
+        return this.gastosAdicionalesService.marcarComoPendiente(id);
     }
 
     @Delete(':id')

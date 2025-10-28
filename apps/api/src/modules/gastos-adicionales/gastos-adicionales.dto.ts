@@ -1,4 +1,9 @@
-import { IsString, IsDecimal, IsInt, IsOptional, IsDateString } from 'class-validator';
+import { IsString, IsDecimal, IsInt, IsOptional, IsDateString, IsEnum } from 'class-validator';
+
+export enum EstadoGasto {
+  PENDIENTE = 'PENDIENTE',
+  PAGADO = 'PAGADO'
+}
 
 export class CrearGastoAdicionalDto {
   @IsInt()
@@ -20,6 +25,10 @@ export class CrearGastoAdicionalDto {
 
   @IsDateString()
   fecha: string;
+
+  @IsOptional()
+  @IsEnum(EstadoGasto)
+  estado?: EstadoGasto;
 
   @IsOptional()
   @IsString()
@@ -48,6 +57,10 @@ export class ActualizarGastoAdicionalDto {
   fecha?: string;
 
   @IsOptional()
+  @IsEnum(EstadoGasto)
+  estado?: EstadoGasto;
+
+  @IsOptional()
   @IsString()
   notas?: string;
 }
@@ -60,6 +73,7 @@ export interface GastoAdicionalResponse {
   concepto: string;
   monto: string;
   fecha: string;
+  estado: EstadoGasto;
   notas: string | null;
   creado_en: string;
   actualizado_en: string;

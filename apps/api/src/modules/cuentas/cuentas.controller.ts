@@ -12,32 +12,34 @@ export class CuentasController {
   }
 
   @Get()
-  async obtenerTodas(@Query('usuario_id') usuarioId: number, @Query('activas') activas?: boolean) {
-    if (activas === true) {
-      return await this.cuentasService.obtenerActivas(usuarioId);
+  async obtenerTodas(@Query('usuario_id') usuarioId?: string, @Query('activas') activas?: string) {
+    const userId = usuarioId ? parseInt(usuarioId) : 1; // Defaultear a usuario 1
+    if (activas === 'true') {
+      return await this.cuentasService.obtenerActivas(userId);
     }
-    return await this.cuentasService.obtenerTodas(usuarioId);
+    return await this.cuentasService.obtenerTodas(userId);
   }
 
   @Get(':id')
-  async obtenerPorId(@Param('id') id: number) {
-    return await this.cuentasService.obtenerPorId(id);
+  async obtenerPorId(@Param('id') id: string) {
+    return await this.cuentasService.obtenerPorId(parseInt(id));
   }
 
   @Get(':id/saldo')
-  async obtenerSaldo(@Param('id') id: number) {
-    const saldo = await this.cuentasService.obtenerSaldoCalculado(id);
-    return { cuenta_id: id, saldo_actual: saldo };
+  async obtenerSaldo(@Param('id') id: string) {
+    const cuentaId = parseInt(id);
+    const saldo = await this.cuentasService.obtenerSaldoCalculado(cuentaId);
+    return { cuenta_id: cuentaId, saldo_actual: saldo };
   }
 
   @Put(':id')
-  async actualizar(@Param('id') id: number, @Body() actualizarCuentaDto: ActualizarCuentaDto) {
-    return await this.cuentasService.actualizar(id, actualizarCuentaDto);
+  async actualizar(@Param('id') id: string, @Body() actualizarCuentaDto: ActualizarCuentaDto) {
+    return await this.cuentasService.actualizar(parseInt(id), actualizarCuentaDto);
   }
 
   @Delete(':id')
-  async eliminar(@Param('id') id: number) {
-    await this.cuentasService.eliminar(id);
+  async eliminar(@Param('id') id: string) {
+    await this.cuentasService.eliminar(parseInt(id));
     return { message: 'Cuenta eliminada correctamente' };
   }
 }

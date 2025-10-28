@@ -7,10 +7,15 @@ interface TableProps {
 }
 
 export const Table: React.FC<TableProps> = ({ children, className }) => (
-    <div className="overflow-x-auto">
-        <table className={cn('min-w-full divide-y divide-gray-200', className)}>
-            {children}
-        </table>
+    <div className="overflow-auto -mx-3 sm:mx-0">
+        <div className="inline-block min-w-full align-middle">
+            <table className={cn(
+                'w-full divide-y divide-gray-200 dark:divide-gray-700 transition-colors duration-200',
+                className
+            )}>
+                {children}
+            </table>
+        </div>
     </div>
 );
 
@@ -20,7 +25,10 @@ interface TableHeaderProps {
 }
 
 export const TableHeader: React.FC<TableHeaderProps> = ({ children, className }) => (
-    <thead className={cn('bg-gray-50', className)}>
+    <thead className={cn(
+        'bg-gray-50 dark:bg-gray-800/50 transition-colors duration-200',
+        className
+    )}>
         {children}
     </thead>
 );
@@ -31,7 +39,10 @@ interface TableBodyProps {
 }
 
 export const TableBody: React.FC<TableBodyProps> = ({ children, className }) => (
-    <tbody className={cn('bg-white divide-y divide-gray-200', className)}>
+    <tbody className={cn(
+        'bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 transition-colors duration-200',
+        className
+    )}>
         {children}
     </tbody>
 );
@@ -45,8 +56,8 @@ interface TableRowProps {
 export const TableRow: React.FC<TableRowProps> = ({ children, className, onClick }) => (
     <tr
         className={cn(
-            'hover:bg-gray-50',
-            onClick && 'cursor-pointer',
+            'hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200',
+            onClick && 'cursor-pointer hover:shadow-sm',
             className
         )}
         onClick={onClick}
@@ -62,20 +73,23 @@ interface TableHeadProps {
 
 export const TableHead: React.FC<TableHeadProps> = ({ children, className }) => (
     <th className={cn(
-        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+        'px-3 sm:px-6 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider transition-colors duration-200',
         className
     )}>
         {children}
     </th>
 );
 
-interface TableCellProps {
+interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
     children: React.ReactNode;
     className?: string;
 }
 
-export const TableCell: React.FC<TableCellProps> = ({ children, className }) => (
-    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}>
+export const TableCell: React.FC<TableCellProps> = ({ children, className, ...props }) => (
+    <td className={cn(
+        'px-3 sm:px-6 py-3 text-xs text-gray-900 dark:text-gray-100 transition-colors duration-200',
+        className
+    )} {...props}>
         {children}
     </td>
 );

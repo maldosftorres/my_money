@@ -1,16 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { notifications } from '../utils/notifications';
 
 interface Tarjeta {
     id: number;
+    usuario_id: number;
+    cuenta_id: number;
     nombre: string;
-    banco: string;
-    tipo: 'credito' | 'debito';
-    limite_credito?: number;
     dia_corte?: number;
     dia_vencimiento?: number;
     activa: boolean;
     creado_en: string;
+    actualizado_en: string;
+}
+
+interface Cuenta {
+    id: number;
+    nombre: string;
 }
 
 interface ConsumoTarjeta {
@@ -25,77 +31,6 @@ interface ConsumoTarjeta {
     creado_en: string;
 }
 
-// Datos simulados de tarjetas
-const tarjetasData: Tarjeta[] = [
-    {
-        id: 1,
-        nombre: 'Visa Platinum',
-        banco: 'Banco Chile',
-        tipo: 'credito',
-        limite_credito: 800000,
-        dia_corte: 15,
-        dia_vencimiento: 5,
-        activa: true,
-        creado_en: '2024-01-15'
-    },
-    {
-        id: 2,
-        nombre: 'Mastercard Gold',
-        banco: 'Banco Estado',
-        tipo: 'credito',
-        limite_credito: 600000,
-        dia_corte: 20,
-        dia_vencimiento: 10,
-        activa: true,
-        creado_en: '2024-02-01'
-    },
-    {
-        id: 3,
-        nombre: 'Débito Cuenta Corriente',
-        banco: 'Banco Chile',
-        tipo: 'debito',
-        activa: true,
-        creado_en: '2024-01-15'
-    }
-];
-
-// Datos simulados de consumos
-const consumosData: ConsumoTarjeta[] = [
-    {
-        id: 1,
-        tarjeta_id: 1,
-        tarjeta_nombre: 'Visa Platinum',
-        descripcion: 'Supermercado Jumbo',
-        monto: 85000,
-        fecha: '2024-10-22',
-        categoria: 'Alimentación',
-        cuotas: 1,
-        creado_en: '2024-10-22'
-    },
-    {
-        id: 2,
-        tarjeta_id: 1,
-        tarjeta_nombre: 'Visa Platinum',
-        descripcion: 'Laptop Gaming',
-        monto: 1200000,
-        fecha: '2024-10-20',
-        categoria: 'Tecnología',
-        cuotas: 12,
-        creado_en: '2024-10-20'
-    },
-    {
-        id: 3,
-        tarjeta_id: 2,
-        tarjeta_nombre: 'Mastercard Gold',
-        descripcion: 'Cena Restaurante',
-        monto: 45000,
-        fecha: '2024-10-18',
-        categoria: 'Entretenimiento',
-        cuotas: 3,
-        creado_en: '2024-10-18'
-    }
-];
-
 const categorias = [
     'Alimentación',
     'Tecnología',
@@ -107,19 +42,12 @@ const categorias = [
     'Otros'
 ];
 
-const bancos = [
-    'Banco Chile',
-    'Banco Estado',
-    'Banco Santander',
-    'Banco BCI',
-    'Banco Security',
-    'Banco Falabella',
-    'Otros'
-];
-
 export default function Tarjetas() {
-    const [tarjetas] = useState<Tarjeta[]>(tarjetasData);
-    const [consumos] = useState<ConsumoTarjeta[]>(consumosData);
+    const [tarjetas, setTarjetas] = useState<Tarjeta[]>([]);
+    const [cuentas, setCuentas] = useState<Cuenta[]>([]);
+    const [consumos] = useState<ConsumoTarjeta[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [vistaActual, setVistaActual] = useState<'tarjetas' | 'consumos'>('tarjetas');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [tipoModal, setTipoModal] = useState<'tarjeta' | 'consumo'>('tarjeta');
@@ -129,9 +57,7 @@ export default function Tarjetas() {
 
     const [formDataTarjeta, setFormDataTarjeta] = useState({
         nombre: '',
-        banco: '',
-        tipo: 'credito' as Tarjeta['tipo'],
-        limite_credito: '',
+        cuenta_id: '',
         dia_corte: '',
         dia_vencimiento: '',
         activa: true
@@ -146,46 +72,67 @@ export default function Tarjetas() {
         cuotas: '1'
     });
 
+    // Cargar datos iniciales
+    useEffect(() => {
+        loadTarjetas();
+        loadCuentas();
+    }, []);
+
+    const loadTarjetas = async () => {
+        try {
+            setLoading(true);
+
+            const response = await fetch('/api/v1/tarjetas?usuario_id=1');
+            if (!response.ok) {
+                throw new Error('Error al cargar tarjetas');
+            }
+            const data = await response.json();
+            setTarjetas(data);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al cargar tarjetas');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadCuentas = async () => {
+        try {
+            const response = await fetch('/api/v1/cuentas?usuario_id=1');
+            if (!response.ok) {
+                throw new Error('Error al cargar cuentas');
+            }
+            const data = await response.json();
+            setCuentas(data);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al cargar cuentas');
+        }
+    };
+
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-CL', {
-            style: 'currency',
-            currency: 'CLP'
-        }).format(amount);
+        return new Intl.NumberFormat('es-PY', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount) + ' Gs';
     };
 
     const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('es-CL');
-    };
-
-    const getTipoColor = (tipo: string) => {
-        return tipo === 'credito'
-            ? 'bg-blue-100 text-blue-800'
-            : 'bg-green-100 text-green-800';
+        return new Date(date).toLocaleDateString('es-PY');
     };
 
     const getCategoriaColor = (categoria: string) => {
         const colors = {
-            'Alimentación': 'bg-green-100 text-green-800',
-            'Tecnología': 'bg-blue-100 text-blue-800',
-            'Entretenimiento': 'bg-purple-100 text-purple-800',
-            'Ropa': 'bg-pink-100 text-pink-800',
-            'Salud': 'bg-red-100 text-red-800',
-            'Transporte': 'bg-indigo-100 text-indigo-800',
-            'Hogar': 'bg-yellow-100 text-yellow-800',
-            'Otros': 'bg-gray-100 text-gray-800'
+            'Alimentación': 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700',
+            'Tecnología': 'bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-700',
+            'Entretenimiento': 'bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300 border border-violet-200 dark:border-violet-700',
+            'Ropa': 'bg-rose-100 dark:bg-rose-900/50 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-700',
+            'Salud': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-700',
+            'Transporte': 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700',
+            'Hogar': 'bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700',
+            'Otros': 'bg-slate-100 dark:bg-slate-800/50 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
         };
-        return colors[categoria as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-    };
-
-    // Calcular utilización de tarjetas de crédito
-    const calcularUtilizacion = (tarjetaId: number) => {
-        const tarjeta = tarjetas.find(t => t.id === tarjetaId);
-        if (!tarjeta || tarjeta.tipo !== 'credito' || !tarjeta.limite_credito) return 0;
-
-        const consumosTarjeta = consumos.filter(c => c.tarjeta_id === tarjetaId);
-        const totalConsumos = consumosTarjeta.reduce((sum, c) => sum + c.monto, 0);
-
-        return (totalConsumos / tarjeta.limite_credito) * 100;
+        return colors[categoria as keyof typeof colors] || 'bg-slate-100 dark:bg-slate-800/50 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
     };
 
     const consumosFiltrados = consumos.filter(consumo =>
@@ -195,13 +142,16 @@ export default function Tarjetas() {
     const totalConsumos = consumosFiltrados.reduce((sum, consumo) => sum + consumo.monto, 0);
     const tarjetasActivas = tarjetas.filter(t => t.activa).length;
 
+    const getCuentaNombre = (cuentaId: number) => {
+        const cuenta = cuentas.find(c => c.id === cuentaId);
+        return cuenta ? cuenta.nombre : 'Cuenta no encontrada';
+    };
+
     const handleEditTarjeta = (tarjeta: Tarjeta) => {
         setSelectedTarjeta(tarjeta);
         setFormDataTarjeta({
             nombre: tarjeta.nombre,
-            banco: tarjeta.banco,
-            tipo: tarjeta.tipo,
-            limite_credito: tarjeta.limite_credito?.toString() || '',
+            cuenta_id: tarjeta.cuenta_id.toString(),
             dia_corte: tarjeta.dia_corte?.toString() || '',
             dia_vencimiento: tarjeta.dia_vencimiento?.toString() || '',
             activa: tarjeta.activa
@@ -214,9 +164,7 @@ export default function Tarjetas() {
         setSelectedTarjeta(null);
         setFormDataTarjeta({
             nombre: '',
-            banco: '',
-            tipo: 'credito',
-            limite_credito: '',
+            cuenta_id: '',
             dia_corte: '',
             dia_vencimiento: '',
             activa: true
@@ -253,37 +201,106 @@ export default function Tarjetas() {
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
         if (tipoModal === 'tarjeta') {
-            console.log('Guardando tarjeta:', formDataTarjeta);
-        } else {
-            console.log('Guardando consumo:', formDataConsumo);
+            try {
+                notifications.loading(selectedTarjeta ? 'Actualizando tarjeta...' : 'Creando tarjeta...');
+                
+                const tarjetaData = {
+                    usuario_id: 1,
+                    cuenta_id: parseInt(formDataTarjeta.cuenta_id),
+                    nombre: formDataTarjeta.nombre,
+                    dia_corte: formDataTarjeta.dia_corte ? parseInt(formDataTarjeta.dia_corte) : null,
+                    dia_vencimiento: formDataTarjeta.dia_vencimiento ? parseInt(formDataTarjeta.dia_vencimiento) : null,
+                    activa: formDataTarjeta.activa
+                };
+
+                const url = selectedTarjeta 
+                    ? `/api/v1/tarjetas/${selectedTarjeta.id}`
+                    : '/api/v1/tarjetas';
+                
+                const method = selectedTarjeta ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(tarjetaData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al guardar la tarjeta');
+                }
+
+                notifications.close();
+                notifications.toast.success(
+                    selectedTarjeta ? 'Tarjeta actualizada correctamente' : 'Tarjeta creada correctamente'
+                );
+                
+                await loadTarjetas(); // Recargar la lista
+                setIsModalOpen(false);
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, 'Error al guardar tarjeta');
+            }
         }
-        setIsModalOpen(false);
+    };
+
+    const handleDeleteTarjeta = async (tarjeta: Tarjeta) => {
+        const result = await notifications.confirmDelete(`la tarjeta "${tarjeta.nombre}"`);
+        
+        if (result.isConfirmed) {
+            try {
+                notifications.loading('Eliminando tarjeta...');
+                
+                const response = await fetch(`/api/v1/tarjetas/${tarjeta.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al eliminar la tarjeta');
+                }
+
+                notifications.close();
+                notifications.toast.success('Tarjeta eliminada correctamente');
+                await loadTarjetas();
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, 'Error al eliminar tarjeta');
+            }
+        }
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Tarjetas</h1>
-                <div className="flex space-x-3">
-                    <div className="flex rounded-lg border border-gray-300">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 transition-colors duration-200">
+                        Tarjetas
+                    </h1>
+                </div>
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                    <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 transition-colors duration-200">
                         <button
                             onClick={() => setVistaActual('tarjetas')}
-                            className={`px-4 py-2 text-sm font-medium rounded-l-lg ${vistaActual === 'tarjetas'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                            className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-all duration-200 ${vistaActual === 'tarjetas'
+                                    ? 'bg-primary-600 dark:bg-primary-600 text-white'
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
                         >
                             Tarjetas
                         </button>
                         <button
                             onClick={() => setVistaActual('consumos')}
-                            className={`px-4 py-2 text-sm font-medium rounded-r-lg ${vistaActual === 'consumos'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                            className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-all duration-200 ${vistaActual === 'consumos'
+                                    ? 'bg-primary-600 dark:bg-primary-600 text-white'
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
                         >
                             Consumos
@@ -299,19 +316,19 @@ export default function Tarjetas() {
             </div>
 
             {/* Resumen */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                 </svg>
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Tarjetas Activas</p>
-                            <p className="text-2xl font-semibold text-gray-900">{tarjetasActivas}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Tarjetas Activas</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{tarjetasActivas}</p>
                         </div>
                     </div>
                 </Card>
@@ -319,15 +336,15 @@ export default function Tarjetas() {
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                                 </svg>
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Total Consumos</p>
-                            <p className="text-2xl font-semibold text-gray-900">{formatCurrency(totalConsumos)}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Consumos</p>
+                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalConsumos)}</p>
                         </div>
                     </div>
                 </Card>
@@ -335,15 +352,15 @@ export default function Tarjetas() {
                 <Card>
                     <div className="flex items-center">
                         <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
+                                <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Registros</p>
-                            <p className="text-2xl font-semibold text-gray-900">{consumosFiltrados.length}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Registros</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{consumosFiltrados.length}</p>
                         </div>
                     </div>
                 </Card>
@@ -360,73 +377,85 @@ export default function Tarjetas() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nombre</TableHead>
-                                <TableHead>Banco</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Límite</TableHead>
-                                <TableHead>Utilización</TableHead>
+                                <TableHead>Cuenta</TableHead>
                                 <TableHead>Fechas</TableHead>
                                 <TableHead>Estado</TableHead>
+                                <TableHead>Creada</TableHead>
                                 <TableHead>Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {tarjetas.map((tarjeta) => {
-                                const utilizacion = calcularUtilizacion(tarjeta.id);
-                                return (
+                            {loading ? (
+                                <TableRow>
+                                    <TableCell className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        Cargando tarjetas...
+                                    </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                </TableRow>
+                            ) : tarjetas.length === 0 ? (
+                                <TableRow>
+                                    <TableCell className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        No tienes tarjetas registradas. ¡Agrega tu primera tarjeta!
+                                    </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                    <TableCell> </TableCell>
+                                </TableRow>
+                            ) : (
+                                tarjetas.map((tarjeta) => (
                                     <TableRow key={tarjeta.id}>
                                         <TableCell className="font-medium">{tarjeta.nombre}</TableCell>
-                                        <TableCell>{tarjeta.banco}</TableCell>
-                                        <TableCell>
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTipoColor(tarjeta.tipo)}`}>
-                                                {tarjeta.tipo === 'credito' ? 'Crédito' : 'Débito'}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            {tarjeta.limite_credito ? formatCurrency(tarjeta.limite_credito) : 'N/A'}
-                                        </TableCell>
-                                        <TableCell>
-                                            {tarjeta.tipo === 'credito' && tarjeta.limite_credito ? (
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                                        <div
-                                                            className={`h-2 rounded-full ${utilizacion > 80 ? 'bg-red-600' :
-                                                                    utilizacion > 60 ? 'bg-yellow-600' : 'bg-green-600'
-                                                                }`}
-                                                            style={{ width: `${Math.min(utilizacion, 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-sm font-medium">{utilizacion.toFixed(1)}%</span>
-                                                </div>
-                                            ) : 'N/A'}
-                                        </TableCell>
-                                        <TableCell className="text-sm">
+                                        <TableCell>{getCuentaNombre(tarjeta.cuenta_id)}</TableCell>
+                                        <TableCell className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
                                             {tarjeta.dia_corte && tarjeta.dia_vencimiento ? (
                                                 <div>
                                                     <div>Corte: {tarjeta.dia_corte}</div>
                                                     <div>Venc: {tarjeta.dia_vencimiento}</div>
                                                 </div>
-                                            ) : 'N/A'}
+                                            ) : 'No definido'}
                                         </TableCell>
                                         <TableCell>
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tarjeta.activa ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200 ${tarjeta.activa ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                                                 }`}>
                                                 {tarjeta.activa ? 'Activa' : 'Inactiva'}
                                             </span>
                                         </TableCell>
+                                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">
+                                            {formatDate(tarjeta.creado_en)}
+                                        </TableCell>
                                         <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleEditTarjeta(tarjeta)}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                            </Button>
+                                            <div className="flex space-x-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEditTarjeta(tarjeta)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteTarjeta(tarjeta)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
-                                );
-                            })}
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </Card>
@@ -438,14 +467,14 @@ export default function Tarjetas() {
                     {/* Filtros */}
                     <Card>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
                                 Mes
                             </label>
                             <input
                                 type="month"
                                 value={filtroMes}
                                 onChange={(e) => setFiltroMes(e.target.value)}
-                                className="block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                className="block w-40 rounded-md border-gray-300 dark:border-gray-500 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:ring-primary-500 hover:border-gray-400 dark:hover:border-gray-400 sm:text-sm transition-colors duration-200"
                             />
                         </div>
                     </Card>
@@ -472,16 +501,16 @@ export default function Tarjetas() {
                                     .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
                                     .map((consumo) => (
                                         <TableRow key={consumo.id}>
-                                            <TableCell>{formatDate(consumo.fecha)}</TableCell>
-                                            <TableCell className="font-medium">{consumo.descripcion}</TableCell>
-                                            <TableCell className="text-sm text-gray-500">{consumo.tarjeta_nombre}</TableCell>
+                                            <TableCell className="text-gray-600 dark:text-gray-400 transition-colors duration-200">{formatDate(consumo.fecha)}</TableCell>
+                                            <TableCell className="font-medium text-gray-900 dark:text-white transition-colors duration-200">{consumo.descripcion}</TableCell>
+                                            <TableCell className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">{consumo.tarjeta_nombre}</TableCell>
                                             <TableCell>
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoriaColor(consumo.categoria)}`}>
                                                     {consumo.categoria}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="font-semibold text-red-600">{formatCurrency(consumo.monto)}</TableCell>
-                                            <TableCell>
+                                            <TableCell className="font-semibold text-red-600 dark:text-red-400 transition-colors duration-200">{formatCurrency(consumo.monto)}</TableCell>
+                                            <TableCell className="text-gray-600 dark:text-gray-400 transition-colors duration-200">
                                                 {consumo.cuotas > 1 ? `${consumo.cuotas}x` : 'Contado'}
                                             </TableCell>
                                             <TableCell>
@@ -489,6 +518,7 @@ export default function Tarjetas() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => handleEditConsumo(consumo)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -526,70 +556,45 @@ export default function Tarjetas() {
                             />
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Banco
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                    Cuenta asociada
                                 </label>
                                 <select
-                                    value={formDataTarjeta.banco}
-                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, banco: e.target.value })}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    value={formDataTarjeta.cuenta_id}
+                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, cuenta_id: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
                                     required
                                 >
-                                    <option value="">Seleccionar banco</option>
-                                    {bancos.map(banco => (
-                                        <option key={banco} value={banco}>{banco}</option>
+                                    <option value="">Seleccionar cuenta</option>
+                                    {cuentas.map(cuenta => (
+                                        <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Tipo
-                                </label>
-                                <select
-                                    value={formDataTarjeta.tipo}
-                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, tipo: e.target.value as Tarjeta['tipo'] })}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                                    required
-                                >
-                                    <option value="credito">Crédito</option>
-                                    <option value="debito">Débito</option>
-                                </select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input
+                                    label="Día de corte"
+                                    type="number"
+                                    min="1"
+                                    max="31"
+                                    value={formDataTarjeta.dia_corte}
+                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_corte: e.target.value })}
+                                    placeholder="15"
+                                    helperText="Opcional"
+                                />
+
+                                <Input
+                                    label="Día de vencimiento"
+                                    type="number"
+                                    min="1"
+                                    max="31"
+                                    value={formDataTarjeta.dia_vencimiento}
+                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_vencimiento: e.target.value })}
+                                    placeholder="5"
+                                    helperText="Opcional"
+                                />
                             </div>
-
-                            {formDataTarjeta.tipo === 'credito' && (
-                                <>
-                                    <Input
-                                        label="Límite de crédito"
-                                        type="number"
-                                        value={formDataTarjeta.limite_credito}
-                                        onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, limite_credito: e.target.value })}
-                                        placeholder="800000"
-                                    />
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Input
-                                            label="Día de corte"
-                                            type="number"
-                                            min="1"
-                                            max="31"
-                                            value={formDataTarjeta.dia_corte}
-                                            onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_corte: e.target.value })}
-                                            placeholder="15"
-                                        />
-
-                                        <Input
-                                            label="Día de vencimiento"
-                                            type="number"
-                                            min="1"
-                                            max="31"
-                                            value={formDataTarjeta.dia_vencimiento}
-                                            onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_vencimiento: e.target.value })}
-                                            placeholder="5"
-                                        />
-                                    </div>
-                                </>
-                            )}
 
                             <div className="flex items-center">
                                 <input
@@ -597,9 +602,9 @@ export default function Tarjetas() {
                                     id="activa"
                                     checked={formDataTarjeta.activa}
                                     onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, activa: e.target.checked })}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 rounded transition-colors duration-200"
                                 />
-                                <label htmlFor="activa" className="ml-2 block text-sm text-gray-900">
+                                <label htmlFor="activa" className="ml-2 block text-sm text-gray-900 dark:text-white transition-colors duration-200">
                                     Tarjeta activa
                                 </label>
                             </div>
@@ -607,13 +612,13 @@ export default function Tarjetas() {
                     ) : (
                         <>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
                                     Tarjeta
                                 </label>
                                 <select
                                     value={formDataConsumo.tarjeta_id}
                                     onChange={(e) => setFormDataConsumo({ ...formDataConsumo, tarjeta_id: e.target.value })}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
                                     required
                                 >
                                     <option value="">Seleccionar tarjeta</option>
@@ -649,13 +654,13 @@ export default function Tarjetas() {
                             />
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
                                     Categoría
                                 </label>
                                 <select
                                     value={formDataConsumo.categoria}
                                     onChange={(e) => setFormDataConsumo({ ...formDataConsumo, categoria: e.target.value })}
-                                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
                                     required
                                 >
                                     <option value="">Seleccionar categoría</option>

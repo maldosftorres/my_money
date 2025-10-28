@@ -3,7 +3,6 @@ import { IsString, IsDecimal, IsInt, IsOptional, IsDateString, IsIn, IsBoolean }
 export enum EstadoGastoFijo {
   PENDIENTE = 'PENDIENTE',
   PAGADO = 'PAGADO',
-  VENCIDO = 'VENCIDO',
 }
 
 export class CrearGastoFijoDto {
@@ -24,11 +23,32 @@ export class CrearGastoFijoDto {
   @IsDecimal({ decimal_digits: '2' })
   monto: string;
 
+  @IsOptional()
   @IsInt()
-  dia_vencimiento: number;
+  dia_mes?: number; // Día del mes para recurrencia
 
   @IsOptional()
-  @IsIn(['PENDIENTE', 'PAGADO', 'VENCIDO'])
+  @IsInt()
+  frecuencia_meses?: number; // Cada cuántos meses se repite
+
+  @IsOptional()
+  @IsBoolean()
+  es_recurrente?: boolean = false; // Si es un gasto fijo recurrente
+
+  @IsOptional()
+  @IsInt()
+  duracion_meses?: number; // Cuántos meses durará este gasto fijo
+
+  @IsOptional()
+  @IsInt()
+  gasto_padre_id?: number; // ID del gasto fijo padre (para gastos generados)
+
+  @IsOptional()
+  @IsDateString()
+  fecha_pago?: string; // Fecha real de pago (cuando se marca como pagado)
+
+  @IsOptional()
+  @IsIn(['PENDIENTE', 'PAGADO'])
   estado?: EstadoGastoFijo = EstadoGastoFijo.PENDIENTE;
 
   @IsOptional()
@@ -59,10 +79,30 @@ export class ActualizarGastoFijoDto {
 
   @IsOptional()
   @IsInt()
-  dia_vencimiento?: number;
+  dia_mes?: number;
 
   @IsOptional()
-  @IsIn(['PENDIENTE', 'PAGADO', 'VENCIDO'])
+  @IsInt()
+  frecuencia_meses?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  es_recurrente?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  duracion_meses?: number;
+
+  @IsOptional()
+  @IsInt()
+  gasto_padre_id?: number;
+
+  @IsOptional()
+  @IsDateString()
+  fecha_pago?: string;
+
+  @IsOptional()
+  @IsIn(['PENDIENTE', 'PAGADO'])
   estado?: EstadoGastoFijo;
 
   @IsOptional()
@@ -81,14 +121,20 @@ export interface GastoFijoResponse {
   categoria_id: number | null;
   concepto: string;
   monto: string;
-  dia_vencimiento: number;
+  fecha: string; // Fecha actual del gasto
+  dia_mes?: number; // Día del mes calculado
+  frecuencia_meses?: number; // Frecuencia en meses
+  es_recurrente?: boolean; // Si es recurrente
+  duracion_meses?: number; // Duración en meses
+  gasto_padre_id?: number; // ID del gasto padre
+  fecha_pago?: string; // Fecha real de pago
   estado: EstadoGastoFijo;
-  activo: boolean;
+  activo?: boolean; // Temporal hasta migración
   notas: string | null;
   creado_en: string;
   actualizado_en: string;
   cuenta_nombre?: string;
   categoria_nombre?: string;
-  fecha_vencimiento_actual?: string;
+  proximo_pago?: string;
   dias_hasta_vencimiento?: number;
 }

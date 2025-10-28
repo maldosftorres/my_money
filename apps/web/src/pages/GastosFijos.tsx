@@ -1,110 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { notifications } from '../utils/notifications';
 
 interface GastoFijo {
     id: number;
-    descripcion: string;
+    usuario_id: number;
+    concepto: string;
+    descripcion: string; // Para compatibilidad con el frontend
     monto: number;
-    dia_del_mes: number;
-    categoria: string;
-    cuenta_id: number;
-    cuenta_nombre: string;
+    dia_mes: number;
+    dia_del_mes: number; // Para compatibilidad con el frontend
+    categoria_id: number | null;
+    categoria: string; // Para compatibilidad con el frontend
+    categoria_nombre?: string;
+    cuenta_id: number | null;
+    cuenta_nombre?: string;
     activo: boolean;
-    proximo_pago: string;
+    notas?: string;
+    proximo_pago?: string;
     ultimo_pago?: string;
+    frecuencia_meses: number;
+    es_recurrente?: boolean;
+    duracion_meses?: number;
+    gasto_padre_id?: number;
+    fecha_pago?: string;
+    estado?: 'PENDIENTE' | 'PAGADO';
     creado_en: string;
+    actualizado_en: string;
 }
 
-// Datos simulados
-const gastosFijosData: GastoFijo[] = [
-    {
-        id: 1,
-        descripcion: 'Arriendo Departamento',
-        monto: 420000,
-        dia_del_mes: 5,
-        categoria: 'Vivienda',
-        cuenta_id: 1,
-        cuenta_nombre: 'Cuenta Corriente Principal',
-        activo: true,
-        proximo_pago: '2024-11-05',
-        ultimo_pago: '2024-10-05',
-        creado_en: '2024-01-15'
-    },
-    {
-        id: 2,
-        descripcion: 'Internet Fibra Óptica',
-        monto: 35000,
-        dia_del_mes: 15,
-        categoria: 'Servicios',
-        cuenta_id: 1,
-        cuenta_nombre: 'Cuenta Corriente Principal',
-        activo: true,
-        proximo_pago: '2024-11-15',
-        ultimo_pago: '2024-10-15',
-        creado_en: '2024-01-20'
-    },
-    {
-        id: 3,
-        descripcion: 'Plan Telefonía Móvil',
-        monto: 18000,
-        dia_del_mes: 20,
-        categoria: 'Servicios',
-        cuenta_id: 1,
-        cuenta_nombre: 'Cuenta Corriente Principal',
-        activo: true,
-        proximo_pago: '2024-11-20',
-        ultimo_pago: '2024-10-20',
-        creado_en: '2024-01-25'
-    },
-    {
-        id: 4,
-        descripcion: 'Seguro Auto',
-        monto: 45000,
-        dia_del_mes: 1,
-        categoria: 'Seguros',
-        cuenta_id: 1,
-        cuenta_nombre: 'Cuenta Corriente Principal',
-        activo: true,
-        proximo_pago: '2024-11-01',
-        ultimo_pago: '2024-10-01',
-        creado_en: '2024-02-01'
-    },
-    {
-        id: 5,
-        descripcion: 'Gym Mensualidad',
-        monto: 25000,
-        dia_del_mes: 10,
-        categoria: 'Entretenimiento',
-        cuenta_id: 1,
-        cuenta_nombre: 'Cuenta Corriente Principal',
-        activo: false,
-        proximo_pago: '2024-11-10',
-        creado_en: '2024-03-01'
-    }
-];
-
-const categorias = [
-    'Vivienda',
-    'Servicios',
-    'Seguros',
-    'Entretenimiento',
-    'Educación',
-    'Salud',
-    'Transporte',
-    'Otros'
-];
-
-const cuentas = [
-    { id: 1, nombre: 'Cuenta Corriente Principal' },
-    { id: 2, nombre: 'Cuenta de Ahorros' },
-    { id: 3, nombre: 'Billetera Efectivo' }
-];
-
 export default function GastosFijos() {
-    const [gastosFijos] = useState<GastoFijo[]>(gastosFijosData);
+    const [gastosFijos, setGastosFijos] = useState<GastoFijo[]>([]);
+    const [cuentas, setCuentas] = useState<any[]>([]);
+    const [categoriasDB, setCategoriasDB] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCategoriaModalOpen, setIsCategoriaModalOpen] = useState(false);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedGasto, setSelectedGasto] = useState<GastoFijo | null>(null);
+    const [nuevaCategoria, setNuevaCategoria] = useState({ nombre: '', es_fijo: true });
     const [filtroCategoria, setFiltroCategoria] = useState<string>('');
+    const [filtroMes, setFiltroMes] = useState<string>(new Date().toISOString().slice(0, 7)); // Mes actual YYYY-MM
+    const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>('');
+    const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>('');
     const [mostrarInactivos, setMostrarInactivos] = useState<boolean>(false);
     const [formData, setFormData] = useState({
         descripcion: '',
@@ -112,35 +50,151 @@ export default function GastosFijos() {
         dia_del_mes: '',
         categoria: '',
         cuenta_id: '',
-        activo: true
+        activo: true,
+        notas: '',
+        frecuencia_meses: '1',
+        es_recurrente: false,
+        duracion_meses: ''
     });
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('es-CL', {
-            style: 'currency',
-            currency: 'CLP'
-        }).format(amount);
+    useEffect(() => {
+        loadInitialData();
+    }, []);
+
+    const loadInitialData = async () => {
+        setLoading(true);
+        await loadCategorias();
+        await loadCuentas();
+        await loadGastosFijos();
+        setLoading(false);
+    };
+
+    const loadGastosFijos = async () => {
+        try {
+            const response = await fetch('/api/v1/gastos-fijos?usuarioId=1');
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+            
+            const data = await response.json();
+            // Convertir los datos de la BD al formato que espera el frontend
+            const gastosFormateados = data.map((gasto: any) => ({
+                ...gasto,
+                descripcion: gasto.concepto, // Mapear concepto a descripcion
+                monto: typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto,
+                dia_del_mes: gasto.dia_mes, // Mapear dia_mes a dia_del_mes
+                categoria: gasto.categoria_id, // Mapear categoria_id a categoria
+                cuenta: gasto.cuenta_id, // Para compatibilidad
+                // Convertir fecha ISO a formato local para evitar problemas de zona horaria
+                proximo_pago: gasto.proximo_pago ? gasto.proximo_pago.split('T')[0] : new Date().toISOString().split('T')[0]
+            }));
+            setGastosFijos(gastosFormateados);
+        } catch (error) {
+            console.error('Error al cargar gastos fijos:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al cargar gastos fijos');
+        }
+    };
+
+    const loadCuentas = async () => {
+        try {
+            const response = await fetch('/api/v1/cuentas');
+            const data = await response.json();
+            setCuentas(data);
+        } catch (error) {
+            console.error('Error al cargar cuentas:', error);
+            notifications.error('Error al cargar las cuentas');
+        }
+    };
+
+    const loadCategorias = async () => {
+        try {
+            const response = await fetch('/api/v1/categorias-gasto');
+            const data = await response.json();
+            setCategoriasDB(data);
+        } catch (error) {
+            console.error('Error al cargar categorías:', error);
+            notifications.error('Error al cargar las categorías');
+        }
+    };
+
+    const handleCreateCategoria = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        try {
+            notifications.loading('Creando categoría...');
+            
+            const categoriaData = {
+                usuario_id: 1,
+                nombre: nuevaCategoria.nombre,
+                es_fijo: nuevaCategoria.es_fijo,
+                activo: true
+            };
+
+            const response = await fetch('/api/v1/categorias-gasto', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(categoriaData)
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al crear la categoría');
+            }
+
+            notifications.close();
+            notifications.toast.success('Categoría creada correctamente');
+            
+            await loadCategorias();
+            setIsCategoriaModalOpen(false);
+            setNuevaCategoria({ nombre: '', es_fijo: true });
+        } catch (err) {
+            notifications.close();
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al crear categoría');
+        }
+    };
+
+    const formatCurrency = (amount: number | string) => {
+        const numericAmount = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
+        if (isNaN(numericAmount)) return '0 Gs';
+        
+        return new Intl.NumberFormat('es-PY', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(numericAmount) + ' Gs';
     };
 
     const formatDate = (date: string) => {
-        return new Date(date).toLocaleDateString('es-CL');
+        if (!date) return 'No definido';
+        // Tratar la fecha como local para evitar problemas de zona horaria
+        const [year, month, day] = date.split('-');
+        const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return localDate.toLocaleDateString('es-PY');
     };
+
+
 
     const getCategoriaColor = (categoria: string) => {
         const colors = {
-            'Vivienda': 'bg-red-100 text-red-800',
-            'Servicios': 'bg-blue-100 text-blue-800',
-            'Seguros': 'bg-purple-100 text-purple-800',
-            'Entretenimiento': 'bg-green-100 text-green-800',
-            'Educación': 'bg-yellow-100 text-yellow-800',
-            'Salud': 'bg-pink-100 text-pink-800',
-            'Transporte': 'bg-indigo-100 text-indigo-800',
-            'Otros': 'bg-gray-100 text-gray-800'
+            'Vivienda': 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
+            'Servicios': 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+            'Seguros': 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
+            'Entretenimiento': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+            'Educación': 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
+            'Salud': 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200',
+            'Transporte': 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200',
+            'Otros': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
         };
-        return colors[categoria as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+        return colors[categoria as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     };
 
-    const getDiasHastaVencimiento = (proximoPago: string) => {
+    const getDiasHastaVencimiento = (proximoPago: string | undefined) => {
+        if (!proximoPago) return 0;
         const hoy = new Date();
         const fechaPago = new Date(proximoPago);
         const diferencia = Math.ceil((fechaPago.getTime() - hoy.getTime()) / (1000 * 3600 * 24));
@@ -148,34 +202,68 @@ export default function GastosFijos() {
     };
 
     const getEstadoPago = (diasHasta: number) => {
-        if (diasHasta < 0) return { text: 'Vencido', color: 'bg-red-100 text-red-800' };
-        if (diasHasta <= 3) return { text: 'Por vencer', color: 'bg-yellow-100 text-yellow-800' };
-        if (diasHasta <= 7) return { text: 'Próximo', color: 'bg-blue-100 text-blue-800' };
-        return { text: 'Vigente', color: 'bg-green-100 text-green-800' };
+        if (diasHasta < 0) return { text: 'Vencido', color: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200' };
+        if (diasHasta <= 3) return { text: 'Por vencer', color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200' };
+        if (diasHasta <= 7) return { text: 'Próximo', color: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' };
+        return { text: 'Vigente', color: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' };
     };
 
     const gastosFiltrados = gastosFijos.filter(gasto => {
-        const cumpleFiltroCategoria = !filtroCategoria || gasto.categoria === filtroCategoria;
+        const cumpleFiltroCategoria = !filtroCategoria || gasto.categoria_nombre === filtroCategoria;
         const cumpleFiltroActivo = mostrarInactivos || gasto.activo;
-        return cumpleFiltroCategoria && cumpleFiltroActivo;
+        
+        // Lógica de filtro de fechas para gastos fijos (basado en próximo pago)
+        let cumpleFiltroFecha = true;
+        if (gasto.proximo_pago) {
+            if (filtroFechaDesde || filtroFechaHasta) {
+                // Si hay rango de fechas, usar rango e ignorar filtro de mes
+                const fechaGasto = new Date(gasto.proximo_pago);
+                if (filtroFechaDesde) {
+                    const fechaDesde = new Date(filtroFechaDesde);
+                    cumpleFiltroFecha = cumpleFiltroFecha && fechaGasto >= fechaDesde;
+                }
+                if (filtroFechaHasta) {
+                    const fechaHasta = new Date(filtroFechaHasta);
+                    cumpleFiltroFecha = cumpleFiltroFecha && fechaGasto <= fechaHasta;
+                }
+            } else {
+                // Si no hay rango de fechas, usar filtro de mes
+                cumpleFiltroFecha = !filtroMes || gasto.proximo_pago.startsWith(filtroMes);
+            }
+        }
+        
+        return cumpleFiltroCategoria && cumpleFiltroActivo && cumpleFiltroFecha;
     });
 
-    const totalGastosFijos = gastosFiltrados.filter(g => g.activo).reduce((sum, gasto) => sum + gasto.monto, 0);
+    const totalGastosFijos = gastosFiltrados.filter(g => g.activo).reduce((sum, gasto) => {
+        const monto = typeof gasto.monto === 'number' ? gasto.monto : parseFloat(gasto.monto) || 0;
+        return sum + monto;
+    }, 0);
+    
     const gastosActivos = gastosFiltrados.filter(g => g.activo).length;
     const proximosVencimientos = gastosFiltrados.filter(g => {
         const dias = getDiasHastaVencimiento(g.proximo_pago);
         return g.activo && dias <= 7 && dias >= 0;
     }).length;
 
+    const handleView = (gasto: GastoFijo) => {
+        setSelectedGasto(gasto);
+        setIsViewModalOpen(true);
+    };
+
     const handleEdit = (gasto: GastoFijo) => {
         setSelectedGasto(gasto);
         setFormData({
-            descripcion: gasto.descripcion,
+            descripcion: gasto.concepto || gasto.descripcion,
             monto: gasto.monto.toString(),
-            dia_del_mes: gasto.dia_del_mes.toString(),
-            categoria: gasto.categoria,
-            cuenta_id: gasto.cuenta_id.toString(),
-            activo: gasto.activo
+            dia_del_mes: gasto.dia_mes?.toString() || gasto.dia_del_mes?.toString() || '',
+            categoria: gasto.categoria_id ? gasto.categoria_id.toString() : '',
+            cuenta_id: gasto.cuenta_id ? gasto.cuenta_id.toString() : '',
+            activo: gasto.activo,
+            notas: gasto.notas || '',
+            frecuencia_meses: gasto.frecuencia_meses?.toString() || '1',
+            es_recurrente: gasto.es_recurrente || false,
+            duracion_meses: gasto.duracion_meses?.toString() || ''
         });
         setIsModalOpen(true);
     };
@@ -188,60 +276,335 @@ export default function GastosFijos() {
             dia_del_mes: '',
             categoria: '',
             cuenta_id: '',
-            activo: true
+            activo: true,
+            notas: '',
+            frecuencia_meses: '1',
+            es_recurrente: false,
+            duracion_meses: ''
         });
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Guardando gasto fijo:', formData);
-        setIsModalOpen(false);
+        
+        try {
+            notifications.loading(selectedGasto ? 'Actualizando gasto fijo...' : 'Creando gasto fijo...');
+            
+            const gastoData = {
+                concepto: formData.descripcion,
+                monto: formData.monto.toString(),
+                dia_mes: parseInt(formData.dia_del_mes),
+                categoria_id: formData.categoria ? parseInt(formData.categoria) : null,
+                cuenta_id: formData.cuenta_id ? parseInt(formData.cuenta_id) : null,
+                activo: formData.activo,
+                notas: formData.notas || null,
+                frecuencia_meses: parseInt(formData.frecuencia_meses),
+                es_recurrente: formData.es_recurrente,
+                duracion_meses: formData.es_recurrente && formData.duracion_meses ? parseInt(formData.duracion_meses) : null
+            };
+
+            // Solo agregar usuario_id para crear nuevos gastos
+            if (!selectedGasto) {
+                (gastoData as any).usuario_id = 1;
+            }
+
+            const url = selectedGasto 
+                ? `/api/v1/gastos-fijos/${selectedGasto.id}`
+                : '/api/v1/gastos-fijos';
+            
+            const method = selectedGasto ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(gastoData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+
+            notifications.close();
+            notifications.toast.success(
+                selectedGasto ? 'Gasto fijo actualizado correctamente' : 'Gasto fijo creado correctamente'
+            );
+            
+            await loadGastosFijos();
+            setIsModalOpen(false);
+        } catch (err) {
+            notifications.close();
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al guardar gasto fijo');
+        }
+    };
+
+    const handleDeleteGasto = async (gasto: GastoFijo) => {
+        const result = await notifications.confirmDelete(`el gasto fijo "${gasto.descripcion}"`);
+        
+        if (result.isConfirmed) {
+            try {
+                notifications.loading('Eliminando gasto fijo...');
+                
+                const response = await fetch(`/api/v1/gastos-fijos/${gasto.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                notifications.close();
+                notifications.toast.success('Gasto fijo eliminado correctamente');
+                await loadGastosFijos();
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, 'Error al eliminar gasto fijo');
+            }
+        }
+    };
+
+    const handleQuickPay = async (gasto: GastoFijo) => {
+        try {
+            notifications.loading('Marcando como pagado...');
+            
+            const response = await fetch(`/api/v1/gastos-fijos/${gasto.id}/pagar`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+
+            notifications.close();
+            notifications.toast.success('Gasto marcado como pagado');
+            await loadGastosFijos();
+        } catch (err) {
+            notifications.close();
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al marcar como pagado');
+        }
+    };
+
+    const handlePayWithDate = async (gasto: GastoFijo) => {
+        try {
+            // Usar la función inputDate de notifications
+            const result = await notifications.inputDate({
+                title: '¿En qué fecha se pagó?',
+                text: `Marcar como pagado: ${gasto.descripcion}`,
+                inputLabel: 'Fecha de pago',
+                confirmButtonText: 'Marcar como pagado',
+                showCancelButton: true
+            });
+
+            if (result.isDismissed) return;
+            const fechaPago = result.value;
+
+            notifications.loading('Marcando como pagado...');
+            
+            const response = await fetch(`/api/v1/gastos-fijos/${gasto.id}/pagar`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ fechaPago })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null);
+                const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
+
+            notifications.close();
+            notifications.toast.success('Gasto marcado como pagado con fecha específica');
+            await loadGastosFijos();
+        } catch (err) {
+            notifications.close();
+            const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+            notifications.error(errorMessage, 'Error al marcar como pagado');
+        }
+    };
+
+    const handleDeleteRecurrentes = async (gasto: GastoFijo) => {
+        const tipoGasto = gasto.es_recurrente && !gasto.gasto_padre_id ? 'padre' : 'hijo';
+        const mensaje = tipoGasto === 'padre' 
+            ? `todos los gastos fijos recurrentes de "${gasto.descripcion}" (incluyendo los meses futuros pendientes)`
+            : `toda la serie recurrente relacionada con "${gasto.descripcion}"`;
+            
+        const result = await notifications.confirm(
+            `¿Estás seguro de que deseas eliminar ${mensaje}?`,
+            'Eliminar Serie Recurrente',
+            'Sí, eliminar todos',
+            'Cancelar'
+        );
+        
+        if (result.isConfirmed) {
+            try {
+                notifications.loading('Eliminando gastos fijos recurrentes...');
+                
+                const response = await fetch(`/api/v1/gastos-fijos/${gasto.id}/recurrentes`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => null);
+                    const errorMessage = errorData?.message || `Error ${response.status}: ${response.statusText}`;
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                notifications.close();
+                notifications.toast.success(data.message || 'Gastos fijos recurrentes eliminados correctamente');
+                await loadGastosFijos();
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, 'Error al eliminar gastos fijos recurrentes');
+            }
+        }
     };
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-gray-900">Gastos Fijos</h1>
-                <Button onClick={handleNew}>
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Nuevo Gasto Fijo
-                </Button>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white transition-colors duration-200">
+                    Gastos Fijos
+                </h1>
             </div>
 
-            {/* Filtros */}
+            {/* Filtros y Botón Nuevo */}
             <Card>
-                <div className="flex flex-wrap gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Categoría
-                        </label>
-                        <select
-                            value={filtroCategoria}
-                            onChange={(e) => setFiltroCategoria(e.target.value)}
-                            className="block w-40 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        >
-                            <option value="">Todas</option>
-                            {categorias.map(categoria => (
-                                <option key={categoria} value={categoria}>{categoria}</option>
-                            ))}
-                        </select>
+                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-4">
+                    <div className="flex flex-wrap gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                Categoría
+                            </label>
+                            <select
+                                value={filtroCategoria}
+                                onChange={(e) => setFiltroCategoria(e.target.value)}
+                                className="block w-40 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                            >
+                                <option value="">Todas</option>
+                                {categoriasDB.map(categoria => (
+                                    <option key={categoria.id} value={categoria.nombre}>{categoria.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                Mes próx. pago
+                            </label>
+                            <input
+                                type="month"
+                                value={filtroMes}
+                                onChange={(e) => {
+                                    setFiltroMes(e.target.value);
+                                    // Limpiar rango de fechas si se selecciona mes
+                                    if (e.target.value) {
+                                        setFiltroFechaDesde('');
+                                        setFiltroFechaHasta('');
+                                    }
+                                }}
+                                disabled={!!(filtroFechaDesde || filtroFechaHasta)}
+                                className="block w-40 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                    Desde
+                                </label>
+                                <input
+                                    type="date"
+                                    value={filtroFechaDesde}
+                                    onChange={(e) => {
+                                        setFiltroFechaDesde(e.target.value);
+                                        // Limpiar filtro de mes si se selecciona rango
+                                        if (e.target.value) {
+                                            setFiltroMes('');
+                                        }
+                                    }}
+                                    className="block w-36 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                    Hasta
+                                </label>
+                                <input
+                                    type="date"
+                                    value={filtroFechaHasta}
+                                    onChange={(e) => {
+                                        setFiltroFechaHasta(e.target.value);
+                                        // Limpiar filtro de mes si se selecciona rango
+                                        if (e.target.value) {
+                                            setFiltroMes('');
+                                        }
+                                    }}
+                                    className="block w-36 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center">
+                            <input
+                                type="checkbox"
+                                id="mostrarInactivos"
+                                checked={mostrarInactivos}
+                                onChange={(e) => setMostrarInactivos(e.target.checked)}
+                                className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 transition-colors duration-200"
+                            />
+                            <label htmlFor="mostrarInactivos" className="ml-2 block text-sm text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                Mostrar inactivos
+                            </label>
+                        </div>
+
+                        {(filtroFechaDesde || filtroFechaHasta || filtroCategoria || filtroMes || mostrarInactivos) && (
+                            <div className="flex items-end">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setFiltroCategoria('');
+                                        setFiltroMes('');
+                                        setFiltroFechaDesde('');
+                                        setFiltroFechaHasta('');
+                                        setMostrarInactivos(false);
+                                    }}
+                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="flex items-center">
-                        <input
-                            type="checkbox"
-                            id="mostrarInactivos"
-                            checked={mostrarInactivos}
-                            onChange={(e) => setMostrarInactivos(e.target.checked)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="mostrarInactivos" className="ml-2 block text-sm text-gray-900">
-                            Mostrar inactivos
-                        </label>
+                    <div className="flex-shrink-0">
+                        <Button onClick={handleNew}>
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Nuevo Gasto Fijo
+                        </Button>
                     </div>
                 </div>
             </Card>
@@ -258,8 +621,8 @@ export default function GastosFijos() {
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Total Mensual</p>
-                            <p className="text-2xl font-semibold text-gray-900">{formatCurrency(totalGastosFijos)}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Mensual</p>
+                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalGastosFijos)}</p>
                         </div>
                     </div>
                 </Card>
@@ -274,8 +637,8 @@ export default function GastosFijos() {
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Gastos Activos</p>
-                            <p className="text-2xl font-semibold text-gray-900">{gastosActivos}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Gastos Activos</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{gastosActivos}</p>
                         </div>
                     </div>
                 </Card>
@@ -290,8 +653,8 @@ export default function GastosFijos() {
                             </div>
                         </div>
                         <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">Próximos a Vencer</p>
-                            <p className="text-2xl font-semibold text-gray-900">{proximosVencimientos}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Próximos a Vencer</p>
+                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{proximosVencimientos}</p>
                         </div>
                     </div>
                 </Card>
@@ -309,52 +672,140 @@ export default function GastosFijos() {
                             <TableHead>Descripción</TableHead>
                             <TableHead>Categoría</TableHead>
                             <TableHead>Monto</TableHead>
-                            <TableHead>Día de Pago</TableHead>
                             <TableHead>Próximo Pago</TableHead>
                             <TableHead>Estado</TableHead>
-                            <TableHead>Cuenta</TableHead>
                             <TableHead>Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {gastosFiltrados.map((gasto) => {
-                            const diasHasta = getDiasHastaVencimiento(gasto.proximo_pago);
-                            const estadoPago = getEstadoPago(diasHasta);
+                        {loading ? (
+                            <TableRow>
+                                <TableCell className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    Cargando gastos fijos...
+                                </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                            </TableRow>
+                        ) : gastosFiltrados.length === 0 ? (
+                            <TableRow>
+                                <TableCell className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    No tienes gastos fijos registrados. ¡Agrega tu primer gasto fijo!
+                                </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                                <TableCell> </TableCell>
+                            </TableRow>
+                        ) : (
+                            gastosFiltrados.map((gasto) => {
+                                const diasHasta = getDiasHastaVencimiento(gasto.proximo_pago);
+                                const estadoPago = getEstadoPago(diasHasta);
 
-                            return (
-                                <TableRow key={gasto.id} className={!gasto.activo ? 'opacity-50' : ''}>
-                                    <TableCell className="font-medium">{gasto.descripcion}</TableCell>
-                                    <TableCell>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoriaColor(gasto.categoria)}`}>
-                                            {gasto.categoria}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="font-semibold text-red-600">{formatCurrency(gasto.monto)}</TableCell>
-                                    <TableCell>Día {gasto.dia_del_mes}</TableCell>
-                                    <TableCell>{formatDate(gasto.proximo_pago)}</TableCell>
-                                    <TableCell>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estadoPago.color}`}>
-                                            {estadoPago.text}
-                                            {diasHasta >= 0 && ` (${diasHasta}d)`}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-sm text-gray-500">{gasto.cuenta_nombre}</TableCell>
-                                    <TableCell>
-                                        <div className="flex space-x-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleEdit(gasto)}
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                </svg>
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
+                                return (
+                                    <TableRow key={gasto.id} className={!gasto.activo ? 'opacity-50' : ''}>
+                                        <TableCell className="font-medium text-gray-900 dark:text-white transition-colors duration-200">{gasto.descripcion}</TableCell>
+                                        <TableCell>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoriaColor(gasto.categoria_nombre || 'Otros')}`}>
+                                                {gasto.categoria_nombre || 'Sin categoría'}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="font-semibold text-red-600 dark:text-red-400 transition-colors duration-200">{formatCurrency(gasto.monto)}</TableCell>
+                                        <TableCell>{formatDate(gasto.proximo_pago || '')}</TableCell>
+                                        <TableCell>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors duration-200 ${estadoPago.color}`}>
+                                                {estadoPago.text}
+                                                {diasHasta >= 0 && ` (${diasHasta}d)`}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex space-x-1">
+                                                {/* Botones de pagar - solo si está pendiente */}
+                                                {gasto.estado === 'PENDIENTE' && (
+                                                    <>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleQuickPay(gasto)}
+                                                            className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                            title="Marcar como pagado hoy"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handlePayWithDate(gasto)}
+                                                            className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                            title="Marcar como pagado con fecha específica"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                            </svg>
+                                                        </Button>
+                                                    </>
+                                                )}
+
+                                                {/* Botón especial para eliminar recurrentes - Solo en el gasto original */}
+                                                {(gasto.es_recurrente && !gasto.gasto_padre_id) && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDeleteRecurrentes(gasto)}
+                                                        className="text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                                        title="Eliminar toda la serie recurrente"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                        </svg>
+                                                    </Button>
+                                                )}
+
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleView(gasto)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                                    title="Ver detalles"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                    </svg>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleEdit(gasto)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20"
+                                                    title="Editar"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteGasto(gasto)}
+                                                    className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                    title="Eliminar solo este gasto"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
                     </TableBody>
                 </Table>
             </Card>
@@ -397,30 +848,41 @@ export default function GastosFijos() {
                     />
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Categoría
-                        </label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                Categoría
+                            </label>
+                            <Button 
+                                type="button"
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setIsCategoriaModalOpen(true)}
+                                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                            >
+                                + Nueva
+                            </Button>
+                        </div>
                         <select
                             value={formData.categoria}
                             onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
                             required
                         >
                             <option value="">Seleccionar categoría</option>
-                            {categorias.map(categoria => (
-                                <option key={categoria} value={categoria}>{categoria}</option>
+                            {categoriasDB.map(categoria => (
+                                <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
                             ))}
                         </select>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
                             Cuenta de pago
                         </label>
                         <select
                             value={formData.cuenta_id}
                             onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
                             required
                         >
                             <option value="">Seleccionar cuenta</option>
@@ -428,6 +890,40 @@ export default function GastosFijos() {
                                 <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
                             ))}
                         </select>
+                        
+                        <div className="mt-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                            <div className="flex items-start">
+                                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <p><strong>Gastos Fijos:</strong> Puedes crearlos aunque no tengas saldo suficiente. Puedes mover dinero entre cuentas o conseguir fondos para cubrirlos.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Input
+                        label="Frecuencia (meses)"
+                        type="number"
+                        min="1"
+                        max="12"
+                        value={formData.frecuencia_meses}
+                        onChange={(e) => setFormData({ ...formData, frecuencia_meses: e.target.value })}
+                        placeholder="1"
+                        helperText="Cada cuántos meses se repite el gasto (1 = mensual)"
+                        required
+                    />
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                            Notas (opcional)
+                        </label>
+                        <textarea
+                            value={formData.notas}
+                            onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                            rows={3}
+                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-400 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
+                            placeholder="Notas adicionales sobre el gasto fijo..."
+                        />
                     </div>
 
                     <div className="flex items-center">
@@ -436,11 +932,55 @@ export default function GastosFijos() {
                             id="activo"
                             checked={formData.activo}
                             onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded transition-colors duration-200"
                         />
-                        <label htmlFor="activo" className="ml-2 block text-sm text-gray-900">
-                            Gasto activo
+                        <label htmlFor="activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                            Activo
                         </label>
+                    </div>
+
+                    {/* Campos para gastos recurrentes */}
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <div className="flex items-center mb-4">
+                            <input
+                                type="checkbox"
+                                id="es_recurrente"
+                                checked={formData.es_recurrente}
+                                onChange={(e) => setFormData({ ...formData, es_recurrente: e.target.checked, duracion_meses: e.target.checked ? formData.duracion_meses : '' })}
+                                className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded transition-colors duration-200"
+                            />
+                            <label htmlFor="es_recurrente" className="ml-2 block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                Gasto Fijo Recurrente
+                            </label>
+                        </div>
+                        
+                        {formData.es_recurrente && (
+                            <div className="ml-6 space-y-3">
+                                <Input
+                                    label="Duración en meses"
+                                    type="number"
+                                    min="1"
+                                    max="120"
+                                    value={formData.duracion_meses}
+                                    onChange={(e) => setFormData({ ...formData, duracion_meses: e.target.value })}
+                                    placeholder="6"
+                                    helperText="¿Cuántos meses durará este gasto fijo? (ej: 6 meses, 12 meses)"
+                                    required
+                                />
+                                
+                                <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
+                                    <div className="flex items-start">
+                                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                        <div>
+                                            <p className="font-medium">Gasto Recurrente:</p>
+                                            <p>Se creará automáticamente un gasto pendiente cada mes durante {formData.duracion_meses || 'X'} meses.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4">
@@ -456,6 +996,168 @@ export default function GastosFijos() {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Modal Nueva Categoría */}
+            <Modal
+                isOpen={isCategoriaModalOpen}
+                onClose={() => setIsCategoriaModalOpen(false)}
+                title="Nueva Categoría"
+                size="sm"
+            >
+                <form onSubmit={handleCreateCategoria} className="space-y-4">
+                    <Input
+                        label="Nombre de la categoría"
+                        value={nuevaCategoria.nombre}
+                        onChange={(e) => setNuevaCategoria({ ...nuevaCategoria, nombre: e.target.value })}
+                        placeholder="Ej. Servicios, Seguros, etc."
+                        required
+                    />
+
+                    <div>
+                        <label className="flex items-center space-x-2">
+                            <input
+                                type="checkbox"
+                                checked={nuevaCategoria.es_fijo}
+                                onChange={(e) => setNuevaCategoria({ ...nuevaCategoria, es_fijo: e.target.checked })}
+                                className="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                                Es gasto fijo (se repite mensualmente)
+                            </span>
+                        </label>
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsCategoriaModalOpen(false)}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button type="submit">
+                            Crear Categoría
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* Modal Ver Detalles */}
+            <Modal
+                isOpen={isViewModalOpen}
+                onClose={() => setIsViewModalOpen(false)}
+                title="Detalles del Gasto Fijo"
+                size="md"
+            >
+                {selectedGasto && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Concepto
+                                </label>
+                                <p className="text-lg text-gray-900 dark:text-white">
+                                    {selectedGasto.descripcion || selectedGasto.concepto}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Monto
+                                </label>
+                                <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                                    {formatCurrency(selectedGasto.monto)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Día de pago
+                                </label>
+                                <p className="text-lg text-gray-900 dark:text-white">
+                                    Día {selectedGasto.dia_mes || selectedGasto.dia_del_mes}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Frecuencia
+                                </label>
+                                <p className="text-lg text-gray-900 dark:text-white">
+                                    {selectedGasto.frecuencia_meses === 1 ? 'Mensual' : `Cada ${selectedGasto.frecuencia_meses} meses`}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Categoría
+                                </label>
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getCategoriaColor(selectedGasto.categoria_nombre || 'Otros')}`}>
+                                    {selectedGasto.categoria_nombre || 'Sin categoría'}
+                                </span>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Cuenta de pago
+                                </label>
+                                <p className="text-lg text-gray-900 dark:text-white">
+                                    {selectedGasto.cuenta_nombre}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Próximo pago
+                                </label>
+                                <p className="text-lg text-gray-900 dark:text-white">
+                                    {formatDate(selectedGasto.proximo_pago || '')}
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                    Estado
+                                </label>
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getEstadoPago(getDiasHastaVencimiento(selectedGasto.proximo_pago)).color}`}>
+                                    {selectedGasto.activo ? getEstadoPago(getDiasHastaVencimiento(selectedGasto.proximo_pago)).text : 'Inactivo'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                Notas
+                            </label>
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 min-h-[60px] transition-colors duration-200">
+                                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
+                                    {selectedGasto.notas || 'Sin notas adicionales'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-600">
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    setIsViewModalOpen(false);
+                                    handleEdit(selectedGasto);
+                                }}
+                            >
+                                Editar
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => setIsViewModalOpen(false)}
+                            >
+                                Cerrar
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </Modal>
         </div>
     );

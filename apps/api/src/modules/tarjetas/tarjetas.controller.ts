@@ -7,17 +7,14 @@ import {
     Body,
     Param,
     Query,
-    ParseIntPipe,
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
 import { TarjetasService } from './tarjetas.service';
 import { 
     CrearTarjetaDto, 
-    ActualizarTarjetaDto, 
-    PagarResumenDto,
-    TarjetaResponse, 
-    EstadisticasTarjetaResponse 
+    ActualizarTarjetaDto,
+    TarjetaResponse
 } from './tarjetas.dto';
 
 @Controller('tarjetas')
@@ -32,55 +29,30 @@ export class TarjetasController {
 
     @Get()
     async obtenerTodos(
-        @Query('usuarioId', ParseIntPipe) usuarioId: number,
-        @Query('soloActivas') soloActivas?: string,
+        @Query('usuario_id') usuarioId?: string,
+        @Query('activas') activas?: string,
     ): Promise<TarjetaResponse[]> {
-        const activas = soloActivas === 'true';
-        return this.tarjetasService.obtenerTodos(usuarioId, activas);
-    }
-
-    @Get('vencimientos/:usuarioId')
-    async obtenerTarjetasConVencimientosProximos(
-        @Param('usuarioId', ParseIntPipe) usuarioId: number,
-        @Query('dias', ParseIntPipe) dias: number = 7,
-    ): Promise<TarjetaResponse[]> {
-        return this.tarjetasService.obtenerTarjetasConVencimientosProximos(usuarioId, dias);
-    }
-
-    @Get('estadisticas/:usuarioId')
-    async obtenerEstadisticas(
-        @Param('usuarioId', ParseIntPipe) usuarioId: number,
-        @Query('tarjetaId') tarjetaId?: string,
-        @Query('meses', ParseIntPipe) meses: number = 6,
-    ): Promise<EstadisticasTarjetaResponse[]> {
-        const tarjId = tarjetaId ? parseInt(tarjetaId) : undefined;
-        return this.tarjetasService.obtenerEstadisticas(usuarioId, tarjId, meses);
+        const userId = usuarioId ? parseInt(usuarioId) : 1; // Defaultear a usuario 1
+        const soloActivas = activas === 'true';
+        return this.tarjetasService.obtenerTodos(userId, soloActivas);
     }
 
     @Get(':id')
-    async obtenerPorId(@Param('id', ParseIntPipe) id: number): Promise<TarjetaResponse> {
-        return this.tarjetasService.obtenerPorId(id);
-    }
-
-    @Post(':id/pagar')
-    async pagarResumen(
-        @Param('id', ParseIntPipe) id: number,
-        @Body() pagarResumenDto: PagarResumenDto,
-    ): Promise<{ mensaje: string; transaccion_id?: number }> {
-        return this.tarjetasService.pagarResumen(id, pagarResumenDto);
+    async obtenerPorId(@Param('id') id: string): Promise<TarjetaResponse> {
+        return this.tarjetasService.obtenerPorId(parseInt(id));
     }
 
     @Put(':id')
     async actualizar(
-        @Param('id', ParseIntPipe) id: number,
+        @Param('id') id: string,
         @Body() actualizarTarjetaDto: ActualizarTarjetaDto,
     ): Promise<TarjetaResponse> {
-        return this.tarjetasService.actualizar(id, actualizarTarjetaDto);
+        return this.tarjetasService.actualizar(parseInt(id), actualizarTarjetaDto);
     }
 
     @Delete(':id')
     @HttpCode(HttpStatus.NO_CONTENT)
-    async eliminar(@Param('id', ParseIntPipe) id: number): Promise<void> {
-        return this.tarjetasService.eliminar(id);
+    async eliminar(@Param('id') id: string): Promise<void> {
+        return this.tarjetasService.eliminar(parseInt(id));
     }
 }

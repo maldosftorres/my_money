@@ -39,14 +39,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
                 timezone: '+00:00',
                 supportBigNumbers: true,
                 bigNumberStrings: false,
+                typeCast: function (field, next) {
+                    if (field.type === 'TINY' && field.length === 1) {
+                        return (field.string() === '1'); // 1 = true, 0 = false
+                    }
+                    return next();
+                },
             });
 
-            // Probar la conexión
+            // Probar la conexión y configurar UTF-8
             const connection = await this.pool.getConnection();
             await connection.ping();
+            
+            // Configurar UTF-8 para todas las conexiones
+            await connection.execute('SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci');
+            await connection.execute('SET CHARACTER SET utf8mb4');
+            await connection.execute('SET character_set_results = utf8mb4');
+            
             connection.release();
 
-            this.logger.log('Pool de conexiones MySQL creado exitosamente');
+            this.logger.log('Pool de conexiones MySQL creado exitosamente con UTF-8');
         } catch (error) {
             this.logger.error('Error creando pool de MySQL:', error);
             throw error;

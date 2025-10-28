@@ -162,9 +162,14 @@ storybook-static/
 
 # TypeScript
 *.tsbuildinfo
+*.tsbuildinfo.*
+tsconfig.tsbuildinfo
 
 # Prettier
 .prettiercache
+
+# ESLint cache
+.eslintcache
 
 # Webpack
 .webpack/
@@ -174,9 +179,27 @@ storybook-static/
 
 # Vite
 .vite/
+vite.config.*.timestamp-*
 
 # SWC
 .swc/
+
+# NestJS específicos
+.nest_repl_history
+nest-cli.log
+
+# PWA & Service Workers (mantener solo los generados)
+# sw.js - comentado porque es generado por Vite PWA
+# sw.js.map - comentado porque es generado por Vite PWA
+# workbox-*.js - comentado porque son generados
+# workbox-*.js.map - comentado porque son generados
+# manifest.webmanifest - comentado porque es generado
+
+# Archivos generados por Vite PWA - mantener los fuente
+/apps/web/dist/sw.js
+/apps/web/dist/sw.js.map
+/apps/web/dist/workbox-*.js
+/apps/web/dist/workbox-*.js.map
 
 # ==============================================================================
 # 🚀 Deployment & CI/CD
@@ -192,14 +215,16 @@ docker-compose.override.yml
 # 💰 MyMoney Specific
 # ==============================================================================
 # Application logs
-logs/app.log
-logs/error.log
-logs/access.log
+apps/api/logs/
+apps/web/logs/
+*.log
+*.log.*
 
-# Database backups
+# Database backups & exports
 backups/
 *.sql.backup
 *.dump
+db/backups/
 
 # Reports & exports
 exports/
@@ -208,9 +233,57 @@ reports/
 *.xlsx
 *.pdf
 
-# User uploads
+# User uploads & documents
+uploads/
 uploads/receipts/
 uploads/documents/
+
+# Build artifacts específicos
+apps/api/dist/
+apps/web/dist/
+apps/web/build/
+
+# Environment files específicos del proyecto
+apps/api/.env
+apps/api/.env.*
+apps/web/.env
+apps/web/.env.*
+
+# Lock files específicos (mantenemos pnpm-lock.yaml)
+!pnpm-lock.yaml
+
+# Archivos temporales de desarrollo
+*.local.ts
+*.local.js
+debug/
+temp-files/
+TODO.md
+NOTES.md
+.vscode/settings.json.local
+
+# Archivos de respaldo automático
+*.bak
+*.backup
+*~
+.#*
+
+# Archivos específicos del proyecto MyMoney
+apps/web/src/assets/temp/
+apps/api/uploads/
+test-data/
+mock-data/
+sample-data/
+
+# Archivos de migración temporal (mantener los oficiales)
+db/temp-migrations/
+db/rollback/
+
+# Certificados y claves (desarrollo local)
+certs/
+ssl/
+*.pem
+*.key
+*.crt
 
 # ==============================================================================
 # 📝 Documentation Build

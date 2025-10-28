@@ -6,6 +6,11 @@
 
 USE my_money;
 
+-- Configurar UTF-8 para caracteres especiales y acentos
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+SET CHARACTER SET utf8mb4;
+SET character_set_results = utf8mb4;
+
 -- ============================
 -- 1) Tablas maestras
 -- ============================
@@ -17,7 +22,7 @@ CREATE TABLE usuarios (
   estado          ENUM('ACTIVO','INACTIVO') DEFAULT 'ACTIVO',
   creado_en       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE cuentas (
   id              INT AUTO_INCREMENT PRIMARY KEY,
@@ -30,7 +35,7 @@ CREATE TABLE cuentas (
   creado_en       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_cuentas_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_cuentas_usuario ON cuentas(usuario_id);
 
@@ -43,7 +48,7 @@ CREATE TABLE categorias_gasto (
   creado_en       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_catgasto_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_categorias_usuario ON categorias_gasto(usuario_id);
 
@@ -64,7 +69,7 @@ CREATE TABLE ingresos (
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_ingresos_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
   CONSTRAINT fk_ingresos_cuenta  FOREIGN KEY (cuenta_id) REFERENCES cuentas(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_ingresos_usuario_fecha ON ingresos(usuario_id, fecha);
 
@@ -83,7 +88,7 @@ CREATE TABLE gastos_fijos (
   CONSTRAINT fk_gf_usuario    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
   CONSTRAINT fk_gf_cuenta     FOREIGN KEY (cuenta_id) REFERENCES cuentas(id),
   CONSTRAINT fk_gf_categoria  FOREIGN KEY (categoria_id) REFERENCES categorias_gasto(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_gf_usuario_fecha ON gastos_fijos(usuario_id, fecha);
 
@@ -102,7 +107,7 @@ CREATE TABLE gastos_adicionales (
   CONSTRAINT fk_ga_usuario    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
   CONSTRAINT fk_ga_cuenta     FOREIGN KEY (cuenta_id) REFERENCES cuentas(id),
   CONSTRAINT fk_ga_categoria  FOREIGN KEY (categoria_id) REFERENCES categorias_gasto(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_ga_usuario_fecha ON gastos_adicionales(usuario_id, fecha);
 
@@ -122,7 +127,7 @@ CREATE TABLE tarjetas (
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_tarjetas_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
   CONSTRAINT fk_tarjetas_cuenta  FOREIGN KEY (cuenta_id) REFERENCES cuentas(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_tarjetas_usuario ON tarjetas(usuario_id);
 
@@ -139,7 +144,7 @@ CREATE TABLE consumos_tarjeta (
   actualizado_en  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_ct_tarjeta FOREIGN KEY (tarjeta_id) REFERENCES tarjetas(id),
   CONSTRAINT fk_ct_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_ct_usuario_fecha ON consumos_tarjeta(usuario_id, fecha_consumo);
 
@@ -168,7 +173,7 @@ CREATE TABLE movimientos (
     OR
     (tipo = 'GASTO' AND cuenta_origen_id IS NOT NULL)
   )
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_mov_usuario_fecha ON movimientos(usuario_id, fecha);
 
