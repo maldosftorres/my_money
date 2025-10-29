@@ -71,3 +71,12 @@ export interface ComparativoMesesResponse {
   ahorro_anterior: number;
   variacion_ahorro: number;
 }
+
+export interface SaldoAcumuladoResponse {
+  mes: string;
+  saldo_acumulado: number;
+}
+
+export interface ResumenConSaldoAcumuladoResponse extends ResumenMesResponse {
+  saldo_acumulado: number;
+}

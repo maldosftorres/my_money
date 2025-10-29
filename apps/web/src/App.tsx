@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import Ingresos from './pages/Ingresos'
 import GastosFijos from './pages/GastosFijos'
 import GastosAdicionales from './pages/GastosAdicionales'
+import Ahorros from './pages/Ahorros'
 import Movimientos from './pages/Movimientos'
 import Tarjetas from './pages/Tarjetas'
 import Cuentas from './pages/Cuentas'
@@ -25,6 +26,7 @@ function App() {
                             <Route path="/ingresos" element={<Ingresos />} />
                             <Route path="/gastos-fijos" element={<GastosFijos />} />
                             <Route path="/gastos-adicionales" element={<GastosAdicionales />} />
+                            <Route path="/ahorros" element={<Ahorros />} />
                             <Route path="/movimientos" element={<Movimientos />} />
                             <Route path="/tarjetas" element={<Tarjetas />} />
                             <Route path="/cuentas" element={<Cuentas />} />

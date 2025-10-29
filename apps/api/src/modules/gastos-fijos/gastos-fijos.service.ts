@@ -9,7 +9,9 @@ export class GastosFijosService {
     async crear(crearGastoFijoDto: CrearGastoFijoDto): Promise<GastoFijoResponse> {
         const { 
             usuario_id, cuenta_id, categoria_id, concepto, monto, estado, notas, 
-            dia_mes, es_recurrente, duracion_meses, frecuencia_meses 
+            dia_mes, es_recurrente, duracion_meses, frecuencia_meses,
+            es_prestamo, total_cuotas, cuota_actual, descripcion_prestamo,
+            es_ahorro, meses_objetivo, mes_actual, monto_ya_ahorrado
         } = crearGastoFijoDto;
         
         // Calcular la fecha basada en el día del mes proporcionado
@@ -54,9 +56,21 @@ export class GastosFijosService {
             );
         }
         
+        // Para préstamos, agregar número de cuota al concepto
+        let conceptoFinal = concepto;
+        if (es_prestamo && total_cuotas) {
+            const numeroCuota = (cuota_actual || 0) + 1; // Próxima cuota a pagar
+            conceptoFinal = `${concepto} - Cuota ${numeroCuota}/${total_cuotas}`;
+        }
+        // Para ahorros, agregar número de mes al concepto
+        else if (es_ahorro && meses_objetivo) {
+            const numeroMes = (mes_actual || 0) + 1; // Próximo mes a ahorrar
+            conceptoFinal = `${concepto} - Mes ${numeroMes}/${meses_objetivo}`;
+        }
+
         // Construir consulta dinámicamente para manejar valores null
         const campos = ['usuario_id', 'concepto', 'monto', 'fecha', 'estado'];
-        const valores: any[] = [usuario_id, concepto, monto, fecha, estado || 'PENDIENTE'];
+        const valores: any[] = [usuario_id, conceptoFinal, monto, fecha, estado || 'PENDIENTE'];
         
         if (cuenta_id !== undefined && cuenta_id !== null) {
             campos.push('cuenta_id');
@@ -93,6 +107,48 @@ export class GastosFijosService {
             valores.push(duracion_meses);
         }
 
+        // Campos específicos para préstamos
+        if (es_prestamo !== undefined) {
+            campos.push('es_prestamo');
+            valores.push(es_prestamo);
+        }
+
+        if (total_cuotas !== undefined && total_cuotas !== null) {
+            campos.push('total_cuotas');
+            valores.push(total_cuotas);
+        }
+
+        if (cuota_actual !== undefined && cuota_actual !== null) {
+            campos.push('cuota_actual');
+            valores.push(cuota_actual);
+        }
+
+        if (descripcion_prestamo !== undefined && descripcion_prestamo !== null) {
+            campos.push('descripcion_prestamo');
+            valores.push(descripcion_prestamo);
+        }
+
+        // Campos específicos para ahorros
+        if (es_ahorro !== undefined) {
+            campos.push('es_ahorro');
+            valores.push(es_ahorro);
+        }
+
+        if (meses_objetivo !== undefined && meses_objetivo !== null) {
+            campos.push('meses_objetivo');
+            valores.push(meses_objetivo);
+        }
+
+        if (mes_actual !== undefined && mes_actual !== null) {
+            campos.push('mes_actual');
+            valores.push(mes_actual);
+        }
+
+        if (monto_ya_ahorrado !== undefined && monto_ya_ahorrado !== null) {
+            campos.push('monto_ya_ahorrado');
+            valores.push(monto_ya_ahorrado);
+        }
+
         const placeholders = valores.map(() => '?').join(', ');
         const result = await this.db.execute(
             `INSERT INTO gastos_fijos (${campos.join(', ')}) VALUES (${placeholders})`,
@@ -110,9 +166,27 @@ export class GastosFijosService {
 
         const gastoCreado = await this.obtenerPorId(result.insertId);
 
-        // Si es recurrente, generar gastos para los meses futuros
-        if (es_recurrente && duracion_meses && duracion_meses > 1) {
-            await this.generarGastosFijosRecurrentes(gastoCreado, duracion_meses - 1); // -1 porque ya creamos el primer mes
+        // Si es un préstamo, generar solo las cuotas restantes
+        if (es_prestamo && total_cuotas) {
+            const cuotaInicial = cuota_actual || 0; // Por defecto 0 si no se especifica
+            const cuotasRestantes = total_cuotas - cuotaInicial - 1; // -1 porque ya creamos la primera cuota restante
+            
+            if (cuotasRestantes > 0) {
+                await this.generarCuotasPrestamo(gastoCreado, cuotasRestantes);
+            }
+        }
+        // Si es un ahorro, generar solo los meses restantes
+        else if (es_ahorro && meses_objetivo) {
+            const mesInicial = mes_actual || 0; // Por defecto 0 si no se especifica
+            const mesesRestantes = meses_objetivo - mesInicial - 1; // -1 porque ya creamos el primer mes restante
+            
+            if (mesesRestantes > 0) {
+                await this.generarMesesAhorro(gastoCreado, mesesRestantes);
+            }
+        }
+        // Si es recurrente (pero no préstamo ni ahorro), generar gastos para los meses futuros
+        else if (es_recurrente && duracion_meses && duracion_meses > 1) {
+            await this.generarGastosFijosRecurrentes(gastoCreado, duracion_meses - 1);
         }
 
         return gastoCreado;
@@ -505,5 +579,111 @@ export class GastosFijosService {
         );
 
         return { eliminados: result.affectedRows + resultPadre.affectedRows };
+    }
+
+    /**
+     * Genera todas las cuotas de un préstamo automáticamente
+     */
+    private async generarCuotasPrestamo(gastoPadre: GastoFijoResponse, cuotasRestantes: number): Promise<void> {
+        const frecuencia = gastoPadre.frecuencia_meses || 1; // Por defecto mensual
+        const fechaBase = new Date(gastoPadre.fecha);
+        
+        // Limpiar el concepto base eliminando cualquier información de cuota previa
+        let conceptoBase = gastoPadre.concepto;
+        // Remover patrones como "- Cuota X/Y" del concepto
+        conceptoBase = conceptoBase.replace(/\s*-\s*Cuota\s+\d+\/\d+.*$/, '').trim();
+        
+        for (let i = 1; i <= cuotasRestantes; i++) {
+            // Calcular la fecha de la siguiente cuota
+            const fechaCuota = new Date(fechaBase);
+            fechaCuota.setMonth(fechaCuota.getMonth() + (i * frecuencia));
+            
+            const numeroCuota = (gastoPadre.cuota_actual || 0) + i + 1; // +1 porque empezamos desde la siguiente cuota
+            
+            // Crear el concepto limpio con el número de cuota
+            const conceptoCuota = `${conceptoBase} - Cuota ${numeroCuota}/${gastoPadre.total_cuotas}`;
+            
+            // Crear la nueva cuota
+            await this.db.execute(
+                `INSERT INTO gastos_fijos (
+                    usuario_id, cuenta_id, categoria_id, concepto, monto, fecha, 
+                    estado, notas, dia_mes, frecuencia_meses, es_recurrente, 
+                    duracion_meses, gasto_padre_id, es_prestamo, total_cuotas, 
+                    cuota_actual, descripcion_prestamo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    gastoPadre.usuario_id,
+                    gastoPadre.cuenta_id,
+                    gastoPadre.categoria_id,
+                    conceptoCuota,
+                    gastoPadre.monto,
+                    fechaCuota.toISOString().split('T')[0],
+                    'PENDIENTE', // Las cuotas futuras siempre empiezan como pendientes
+                    gastoPadre.notas,
+                    gastoPadre.dia_mes,
+                    gastoPadre.frecuencia_meses,
+                    false, // Las cuotas individuales no son recurrentes
+                    null, // No tienen duración propia
+                    gastoPadre.id, // ID del gasto padre (primera cuota)
+                    true, // Es parte de un préstamo
+                    gastoPadre.total_cuotas,
+                    numeroCuota,
+                    gastoPadre.descripcion_prestamo
+                ]
+            );
+        }
+    }
+
+    /**
+     * Genera todos los meses de un ahorro automáticamente
+     */
+    private async generarMesesAhorro(gastoPadre: GastoFijoResponse, mesesRestantes: number): Promise<void> {
+        const frecuencia = gastoPadre.frecuencia_meses || 1; // Por defecto mensual
+        const fechaBase = new Date(gastoPadre.fecha);
+        
+        // Limpiar el concepto base eliminando cualquier información de mes previa
+        let conceptoBase = gastoPadre.concepto;
+        // Remover patrones como "- Mes X/Y" del concepto
+        conceptoBase = conceptoBase.replace(/\s*-\s*Mes\s+\d+\/\d+.*$/, '').trim();
+        
+        for (let i = 1; i <= mesesRestantes; i++) {
+            // Calcular la fecha del siguiente mes de ahorro
+            const fechaMes = new Date(fechaBase);
+            fechaMes.setMonth(fechaMes.getMonth() + (i * frecuencia));
+            
+            const numeroMes = (gastoPadre.mes_actual || 0) + i + 1; // +1 porque empezamos desde el siguiente mes
+            
+            // Crear el concepto limpio con el número de mes
+            const conceptoMes = `${conceptoBase} - Mes ${numeroMes}/${gastoPadre.meses_objetivo}`;
+            
+            // Crear el nuevo mes de ahorro
+            await this.db.execute(
+                `INSERT INTO gastos_fijos (
+                    usuario_id, cuenta_id, categoria_id, concepto, monto, fecha, 
+                    estado, notas, dia_mes, frecuencia_meses, es_recurrente, 
+                    duracion_meses, gasto_padre_id, es_ahorro, meses_objetivo, 
+                    mes_actual, monto_ya_ahorrado
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [
+                    gastoPadre.usuario_id,
+                    gastoPadre.cuenta_id,
+                    gastoPadre.categoria_id,
+                    conceptoMes,
+                    gastoPadre.monto,
+                    fechaMes.toISOString().split('T')[0],
+                    'PENDIENTE', // Los meses futuros siempre empiezan como pendientes
+                    gastoPadre.notas,
+                    gastoPadre.dia_mes,
+                    gastoPadre.frecuencia_meses,
+                    false, // Los meses individuales no son recurrentes
+                    null, // No tienen duración propia
+                    gastoPadre.id, // ID del gasto padre (primer mes)
+                    true, // Es parte de un ahorro
+                    gastoPadre.meses_objetivo,
+                    numeroMes,
+                    gastoPadre.monto_ya_ahorrado || '0.00'
+                ]
+            );
+        }
     }
 }

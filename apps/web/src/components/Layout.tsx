@@ -10,7 +10,8 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   Users,
-  FileText
+  FileText,
+  PiggyBank
 } from 'lucide-react'
 import { ThemeToggle } from './ui/ThemeToggle'
 import { FullScreenSpinner } from './ui'
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Ingresos', href: '/ingresos', icon: DollarSign },
   { name: 'Gastos Fijos', href: '/gastos-fijos', icon: Home },
   { name: 'Gastos Adicionales', href: '/gastos-adicionales', icon: ShoppingCart },
+  { name: 'Ahorros', href: '/ahorros', icon: PiggyBank },
   { name: 'Transferencias', href: '/transferencias', icon: ArrowUpDown },
   { name: 'Movimientos', href: '/movimientos', icon: ArrowLeftRight },
   { name: 'Tarjetas', href: '/tarjetas', icon: CreditCard },

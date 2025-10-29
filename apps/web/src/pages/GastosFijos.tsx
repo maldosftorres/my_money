@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input, MetricCard, InfoIcon } from '../components/ui';
 import { notifications } from '../utils/notifications';
+import { DollarSign, FileText, AlertTriangle } from 'lucide-react';
 
 interface GastoFijo {
     id: number;
@@ -27,6 +28,16 @@ interface GastoFijo {
     estado?: 'PENDIENTE' | 'PAGADO';
     creado_en: string;
     actualizado_en: string;
+    // Campos específicos para préstamos
+    es_prestamo?: boolean;
+    total_cuotas?: number;
+    cuota_actual?: number;
+    descripcion_prestamo?: string;
+    // Campos específicos para ahorros
+    es_ahorro?: boolean;
+    meses_objetivo?: number;
+    mes_actual?: number;
+    monto_ya_ahorrado?: number;
 }
 
 export default function GastosFijos() {
@@ -47,6 +58,7 @@ export default function GastosFijos() {
     const [formData, setFormData] = useState({
         descripcion: '',
         monto: '',
+        fecha: '',
         dia_del_mes: '',
         categoria: '',
         cuenta_id: '',
@@ -54,12 +66,40 @@ export default function GastosFijos() {
         notas: '',
         frecuencia_meses: '1',
         es_recurrente: false,
-        duracion_meses: ''
+        duracion_meses: '',
+        es_prestamo: false,
+        total_cuotas: '',
+        cuota_actual: '',
+        descripcion_prestamo: '',
+        es_ahorro: false,
+        meses_objetivo: '',
+        mes_actual: '',
+        monto_ya_ahorrado: ''
     });
 
     useEffect(() => {
         loadInitialData();
     }, []);
+
+    // Detectar automáticamente si se selecciona categoría "Ahorros"
+    useEffect(() => {
+        if (formData.categoria && categoriasDB.length > 0) {
+            const categoriaSeleccionada = categoriasDB.find(cat => cat.id.toString() === formData.categoria);
+            if (categoriaSeleccionada && categoriaSeleccionada.nombre === 'Ahorros') {
+                // Solo activar automáticamente si no hay ningún tipo seleccionado
+                if (!formData.es_recurrente && !formData.es_prestamo && !formData.es_ahorro) {
+                    setFormData(prev => ({
+                        ...prev,
+                        es_ahorro: true,
+                        meses_objetivo: '12',
+                        mes_actual: '0',
+                        monto_ya_ahorrado: '0',
+                        frecuencia_meses: '1'
+                    }));
+                }
+            }
+        }
+    }, [formData.categoria, categoriasDB]);
 
     const loadInitialData = async () => {
         setLoading(true);
@@ -256,6 +296,7 @@ export default function GastosFijos() {
         setFormData({
             descripcion: gasto.concepto || gasto.descripcion,
             monto: gasto.monto.toString(),
+            fecha: gasto.proximo_pago || '',
             dia_del_mes: gasto.dia_mes?.toString() || gasto.dia_del_mes?.toString() || '',
             categoria: gasto.categoria_id ? gasto.categoria_id.toString() : '',
             cuenta_id: gasto.cuenta_id ? gasto.cuenta_id.toString() : '',
@@ -263,7 +304,15 @@ export default function GastosFijos() {
             notas: gasto.notas || '',
             frecuencia_meses: gasto.frecuencia_meses?.toString() || '1',
             es_recurrente: gasto.es_recurrente || false,
-            duracion_meses: gasto.duracion_meses?.toString() || ''
+            duracion_meses: gasto.duracion_meses?.toString() || '',
+            es_prestamo: gasto.es_prestamo || false,
+            total_cuotas: gasto.total_cuotas?.toString() || '',
+            cuota_actual: gasto.cuota_actual?.toString() || '',
+            descripcion_prestamo: gasto.descripcion_prestamo || '',
+            es_ahorro: gasto.es_ahorro || false,
+            meses_objetivo: gasto.meses_objetivo?.toString() || '',
+            mes_actual: gasto.mes_actual?.toString() || '',
+            monto_ya_ahorrado: gasto.monto_ya_ahorrado?.toString() || ''
         });
         setIsModalOpen(true);
     };
@@ -273,6 +322,7 @@ export default function GastosFijos() {
         setFormData({
             descripcion: '',
             monto: '',
+            fecha: '',
             dia_del_mes: '',
             categoria: '',
             cuenta_id: '',
@@ -280,7 +330,15 @@ export default function GastosFijos() {
             notas: '',
             frecuencia_meses: '1',
             es_recurrente: false,
-            duracion_meses: ''
+            duracion_meses: '',
+            es_prestamo: false,
+            total_cuotas: '',
+            cuota_actual: '',
+            descripcion_prestamo: '',
+            es_ahorro: false,
+            meses_objetivo: '',
+            mes_actual: '',
+            monto_ya_ahorrado: ''
         });
         setIsModalOpen(true);
     };
@@ -294,14 +352,22 @@ export default function GastosFijos() {
             const gastoData = {
                 concepto: formData.descripcion,
                 monto: formData.monto.toString(),
-                dia_mes: parseInt(formData.dia_del_mes),
+                dia_mes: formData.fecha ? new Date(formData.fecha).getDate() : null,
                 categoria_id: formData.categoria ? parseInt(formData.categoria) : null,
                 cuenta_id: formData.cuenta_id ? parseInt(formData.cuenta_id) : null,
                 activo: formData.activo,
                 notas: formData.notas || null,
                 frecuencia_meses: parseInt(formData.frecuencia_meses),
                 es_recurrente: formData.es_recurrente,
-                duracion_meses: formData.es_recurrente && formData.duracion_meses ? parseInt(formData.duracion_meses) : null
+                duracion_meses: formData.es_recurrente && formData.duracion_meses ? parseInt(formData.duracion_meses) : null,
+                es_prestamo: formData.es_prestamo,
+                total_cuotas: formData.es_prestamo && formData.total_cuotas ? parseInt(formData.total_cuotas) : null,
+                cuota_actual: formData.es_prestamo && formData.cuota_actual ? parseInt(formData.cuota_actual) : null,
+                descripcion_prestamo: formData.es_prestamo ? formData.descripcion_prestamo || null : null,
+                es_ahorro: formData.es_ahorro,
+                meses_objetivo: formData.es_ahorro && formData.meses_objetivo ? parseInt(formData.meses_objetivo) : null,
+                mes_actual: formData.es_ahorro && formData.mes_actual ? parseInt(formData.mes_actual) : null,
+                monto_ya_ahorrado: formData.es_ahorro && formData.monto_ya_ahorrado ? parseFloat(formData.monto_ya_ahorrado) : null
             };
 
             // Solo agregar usuario_id para crear nuevos gastos
@@ -600,9 +666,6 @@ export default function GastosFijos() {
 
                     <div className="flex-shrink-0">
                         <Button onClick={handleNew}>
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
                             Nuevo Gasto Fijo
                         </Button>
                     </div>
@@ -611,53 +674,24 @@ export default function GastosFijos() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Mensual</p>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalGastosFijos)}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Gastos Activos</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{gastosActivos}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Próximos a Vencer</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{proximosVencimientos}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Total Mensual"
+                    value={formatCurrency(totalGastosFijos)}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="red"
+                />
+                <MetricCard
+                    title="Gastos Activos"
+                    value={gastosActivos.toString()}
+                    icon={<FileText className="w-5 h-5" />}
+                    iconColor="blue"
+                />
+                <MetricCard
+                    title="Próximos a Vencer"
+                    value={proximosVencimientos.toString()}
+                    icon={<AlertTriangle className="w-5 h-5" />}
+                    iconColor="yellow"
+                />
             </div>
 
             {/* Lista de Gastos Fijos */}
@@ -818,100 +852,137 @@ export default function GastosFijos() {
                 size="md"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                        label="Descripción"
-                        value={formData.descripcion}
-                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                        placeholder="Ej. Arriendo Departamento"
-                        required
-                    />
-
-                    <Input
-                        label="Monto"
-                        type="number"
-                        value={formData.monto}
-                        onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                        placeholder="0"
-                        required
-                    />
-
-                    <Input
-                        label="Día del mes"
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={formData.dia_del_mes}
-                        onChange={(e) => setFormData({ ...formData, dia_del_mes: e.target.value })}
-                        placeholder="5"
-                        helperText="Día del mes en que se realiza el pago"
-                        required
-                    />
-
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
-                                Categoría
-                            </label>
-                            <Button 
-                                type="button"
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => setIsCategoriaModalOpen(true)}
-                                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                            >
-                                + Nueva
-                            </Button>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                            <Input
+                                label="Descripción"
+                                value={formData.descripcion}
+                                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                placeholder="Ej. Arriendo Departamento"
+                                required
+                            />
                         </div>
-                        <select
-                            value={formData.categoria}
-                            onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                        <Input
+                            label="Monto"
+                            type="number"
+                            value={formData.monto}
+                            onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
+                            placeholder="0"
                             required
-                        >
-                            <option value="">Seleccionar categoría</option>
-                            {categoriasDB.map(categoria => (
-                                <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
-                            ))}
-                        </select>
+                        />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-                            Cuenta de pago
-                        </label>
-                        <select
-                            value={formData.cuenta_id}
-                            onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
-                            required
-                        >
-                            <option value="">Seleccionar cuenta</option>
-                            {cuentas.map(cuenta => (
-                                <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
-                            ))}
-                        </select>
-                        
-                        <div className="mt-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-                            <div className="flex items-start">
-                                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                </svg>
-                                <p><strong>Gastos Fijos:</strong> Puedes crearlos aunque no tengas saldo suficiente. Puedes mover dinero entre cuentas o conseguir fondos para cubrirlos.</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <div className="flex items-center gap-1 mb-1">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                    Fecha del próximo pago
+                                </label>
+                                <InfoIcon
+                                    title="Fecha del próximo pago"
+                                    content="Fecha en que se realizará el próximo pago de este gasto fijo. El sistema calculará automáticamente las fechas futuras basándose en la frecuencia especificada."
+                                    size={14}
+                                />
                             </div>
+                            <input
+                                type="date"
+                                value={formData.fecha}
+                                onChange={(e) => {
+                                    setFormData({ 
+                                        ...formData, 
+                                        fecha: e.target.value,
+                                        dia_del_mes: new Date(e.target.value).getDate().toString()
+                                    });
+                                }}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            />
                         </div>
+
+                        {/* Solo mostrar frecuencia si es relevante */}
+                        {(formData.es_recurrente || formData.es_prestamo || formData.es_ahorro) && (
+                            <div>
+                                <div className="flex items-center gap-1 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                        Frecuencia
+                                    </label>
+                                    <InfoIcon
+                                        title="Frecuencia de pago"
+                                        content={[
+                                            "¿Cada cuánto tiempo se repite?",
+                                            "• Mensual - Cada mes",
+                                            "• Bimestral - Cada 2 meses", 
+                                            "• Trimestral - Cada 3 meses",
+                                            "• Semestral - Cada 6 meses",
+                                            "• Anual - Cada 12 meses"
+                                        ]}
+                                        size={14}
+                                    />
+                                </div>
+                                <select
+                                    value={formData.frecuencia_meses}
+                                    onChange={(e) => setFormData({ ...formData, frecuencia_meses: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    required
+                                >
+                                    <option value="1">Mensual (cada mes)</option>
+                                    <option value="2">Bimestral (cada 2 meses)</option>
+                                    <option value="3">Trimestral (cada 3 meses)</option>
+                                    <option value="6">Semestral (cada 6 meses)</option>
+                                    <option value="12">Anual (cada 12 meses)</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
-                    <Input
-                        label="Frecuencia (meses)"
-                        type="number"
-                        min="1"
-                        max="12"
-                        value={formData.frecuencia_meses}
-                        onChange={(e) => setFormData({ ...formData, frecuencia_meses: e.target.value })}
-                        placeholder="1"
-                        helperText="Cada cuántos meses se repite el gasto (1 = mensual)"
-                        required
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <div className="flex justify-between items-center mb-1 h-6">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                    Categoría
+                                </label>
+                                <Button 
+                                    type="button"
+                                    variant="secondary" 
+                                    size="sm"
+                                    onClick={() => setIsCategoriaModalOpen(true)}
+                                    className="text-xs px-2 py-1 border-primary-300 text-black hover:bg-primary-50 dark:border-primary-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                                >
+                                    + Nueva
+                                </Button>
+                            </div>
+                            <select
+                                value={formData.categoria}
+                                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            >
+                                <option value="">Seleccionar categoría</option>
+                                {categoriasDB.map(categoria => (
+                                    <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between items-center mb-1 h-6">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                    Cuenta de pago
+                                </label>
+                            </div>
+                            <select
+                                value={formData.cuenta_id}
+                                onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            >
+                                <option value="">Seleccionar cuenta</option>
+                                {cuentas.map(cuenta => (
+                                    <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
@@ -926,6 +997,383 @@ export default function GastosFijos() {
                         />
                     </div>
 
+                    {/* Tipo de Gasto - Simplificado */}
+                    <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">¿Qué tipo de gasto es?</h3>
+                        <div className="grid grid-cols-1 gap-3">
+                            <div className="flex items-center p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <input
+                                    type="radio"
+                                    id="tipo_simple"
+                                    name="tipo_gasto"
+                                    checked={!formData.es_recurrente && !formData.es_prestamo && !formData.es_ahorro}
+                                    onChange={() => setFormData({ 
+                                        ...formData, 
+                                        es_recurrente: false, 
+                                        es_prestamo: false,
+                                        es_ahorro: false,
+                                        duracion_meses: '',
+                                        total_cuotas: '',
+                                        cuota_actual: '',
+                                        descripcion_prestamo: '',
+                                        meses_objetivo: '',
+                                        mes_actual: '',
+                                        monto_ya_ahorrado: '',
+                                        frecuencia_meses: '1' // Valor por defecto
+                                    })}
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 transition-colors duration-200"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <label htmlFor="tipo_simple" className="block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                        Gasto único
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Se programa solo una vez para una fecha específica</p>
+                                </div>
+                                <InfoIcon
+                                    title="Gasto único"
+                                    content={[
+                                        "Se registra una sola vez y se programa para una fecha específica.",
+                                        "Ejemplo: Pago de matrícula anual, renovación de licencia, etc.",
+                                        "No se repite automáticamente."
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+
+                            <div className="flex items-center p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <input
+                                    type="radio"
+                                    id="tipo_recurrente"
+                                    name="tipo_gasto"
+                                    checked={formData.es_recurrente}
+                                    onChange={() => setFormData({ 
+                                        ...formData, 
+                                        es_recurrente: true, 
+                                        es_prestamo: false,
+                                        es_ahorro: false,
+                                        total_cuotas: '',
+                                        cuota_actual: '',
+                                        descripcion_prestamo: '',
+                                        meses_objetivo: '',
+                                        mes_actual: '',
+                                        monto_ya_ahorrado: '',
+                                        duracion_meses: '12', // Valor por defecto 1 año
+                                        frecuencia_meses: '1' // Mensual por defecto
+                                    })}
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 transition-colors duration-200"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <label htmlFor="tipo_recurrente" className="block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                        Gasto recurrente
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Se repite automáticamente cada cierto tiempo</p>
+                                </div>
+                                <InfoIcon
+                                    title="Gasto Recurrente"
+                                    content={[
+                                        "Se creará automáticamente un gasto pendiente según la frecuencia configurada.",
+                                        "Ideal para: servicios, suscripciones, seguros, alquileres, etc.",
+                                        "El sistema genera los gastos futuros automáticamente.",
+                                        "Puedes configurar la duración total (ej: 12 meses, 24 meses)."
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+
+                            <div className="flex items-center p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <input
+                                    type="radio"
+                                    id="tipo_prestamo"
+                                    name="tipo_gasto"
+                                    checked={formData.es_prestamo}
+                                    onChange={() => setFormData({ 
+                                        ...formData, 
+                                        es_prestamo: true, 
+                                        es_recurrente: false,
+                                        es_ahorro: false,
+                                        duracion_meses: '',
+                                        total_cuotas: '12', // Valor por defecto
+                                        cuota_actual: '0', // Empezar desde 0
+                                        meses_objetivo: '',
+                                        mes_actual: '',
+                                        monto_ya_ahorrado: '',
+                                        frecuencia_meses: '1' // Mensual por defecto
+                                    })}
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 transition-colors duration-200"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <label htmlFor="tipo_prestamo" className="block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                        Préstamo
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Cuotas numeradas automáticamente</p>
+                                </div>
+                                <InfoIcon
+                                    title="Préstamo"
+                                    content={[
+                                        "Genera automáticamente cuotas numeradas y correlativas.",
+                                        "Cada cuota se nombra automáticamente (ej: 'Cuota 3/12 - Préstamo Personal').",
+                                        "Solo necesitas especificar cuántas cuotas ya pagaste.",
+                                        "Ideal para: créditos personales, hipotecas, préstamos bancarios."
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+
+                            <div className="flex items-center p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <input
+                                    type="radio"
+                                    id="tipo_ahorro"
+                                    name="tipo_gasto"
+                                    checked={formData.es_ahorro}
+                                    onChange={() => setFormData({ 
+                                        ...formData, 
+                                        es_ahorro: true, 
+                                        es_recurrente: false,
+                                        es_prestamo: false,
+                                        duracion_meses: '',
+                                        total_cuotas: '',
+                                        cuota_actual: '',
+                                        descripcion_prestamo: '',
+                                        meses_objetivo: '12', // Valor por defecto
+                                        mes_actual: '0', // Empezar desde 0
+                                        monto_ya_ahorrado: '0', // Empezar desde 0
+                                        frecuencia_meses: '1' // Mensual por defecto
+                                    })}
+                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 transition-colors duration-200"
+                                />
+                                <div className="ml-3 flex-1">
+                                    <label htmlFor="tipo_ahorro" className="block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
+                                        Ahorro programado
+                                    </label>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Meses numerados automáticamente para alcanzar una meta</p>
+                                </div>
+                                <InfoIcon
+                                    title="Ahorro programado"
+                                    content={[
+                                        "Genera automáticamente meses numerados y correlativas para tu meta de ahorro.",
+                                        "Cada mes se nombra automáticamente (ej: 'Mes 3/12 - Ahorro Vacaciones').",
+                                        "Solo necesitas especificar cuántos meses ya ahorraste.",
+                                        "Ideal para: vacaciones, emergencias, compras grandes, metas financieras."
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Configuración específica para Gasto Recurrente */}
+                    {formData.es_recurrente && (
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                            <div className="flex items-center gap-2 mb-3">
+                                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">¿Por cuánto tiempo?</h4>
+                                <InfoIcon
+                                    title="Duración del gasto recurrente"
+                                    content={[
+                                        "El sistema generará automáticamente los gastos futuros durante este período.",
+                                        "Ejemplos comunes:",
+                                        "• 12 meses - Suscripciones anuales",
+                                        "• 24 meses - Contratos de servicios",
+                                        "• 36 meses - Planes a largo plazo",
+                                        "",
+                                        "Una vez completado, el gasto se marcará como finalizado."
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+                            <select
+                                value={formData.duracion_meses}
+                                onChange={(e) => setFormData({ ...formData, duracion_meses: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            >
+                                <option value="">Seleccionar duración</option>
+                                <option value="6">6 meses</option>
+                                <option value="12">12 meses (1 año)</option>
+                                <option value="18">18 meses</option>
+                                <option value="24">24 meses (2 años)</option>
+                                <option value="36">36 meses (3 años)</option>
+                                <option value="60">60 meses (5 años)</option>
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Configuración específica para Préstamo */}
+                    {formData.es_prestamo && (
+                        <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg space-y-4">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-medium text-orange-900 dark:text-orange-100">Información del préstamo</h4>
+                                <InfoIcon
+                                    title="Configuración automática"
+                                    content={[
+                                        "Solo necesitas proporcionar la información básica.",
+                                        "El sistema generará automáticamente:",
+                                        "• Todas las cuotas restantes",
+                                        "• Numeración correlativa (Cuota X/Total)",
+                                        "• Fechas de vencimiento mensuales",
+                                        "• Seguimiento de progreso"
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Total de cuotas
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="360"
+                                            value={formData.total_cuotas}
+                                            onChange={(e) => setFormData({ ...formData, total_cuotas: e.target.value })}
+                                            placeholder="Escribir o seleccionar..."
+                                            list="cuotas-options"
+                                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                            required
+                                        />
+                                        <datalist id="cuotas-options">
+                                            <option value="6">6 cuotas (6 meses)</option>
+                                            <option value="12">12 cuotas (1 año)</option>
+                                            <option value="18">18 cuotas (1.5 años)</option>
+                                            <option value="24">24 cuotas (2 años)</option>
+                                            <option value="30">30 cuotas (2.5 años)</option>
+                                            <option value="36">36 cuotas (3 años)</option>
+                                            <option value="48">48 cuotas (4 años)</option>
+                                            <option value="60">60 cuotas (5 años)</option>
+                                            <option value="72">72 cuotas (6 años)</option>
+                                            <option value="84">84 cuotas (7 años)</option>
+                                            <option value="96">96 cuotas (8 años)</option>
+                                            <option value="120">120 cuotas (10 años)</option>
+                                        </datalist>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {formData.total_cuotas ? `${formData.total_cuotas} cuotas = ${Math.round(parseInt(formData.total_cuotas) / 12 * 10) / 10} años` : 'Puedes escribir cualquier número o seleccionar una opción común'}
+                                    </p>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        ¿Cuántas ya pagaste?
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={formData.total_cuotas ? parseInt(formData.total_cuotas) - 1 : 60}
+                                        value={formData.cuota_actual}
+                                        onChange={(e) => setFormData({ ...formData, cuota_actual: e.target.value })}
+                                        placeholder="0"
+                                        className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {formData.total_cuotas && formData.cuota_actual ? 
+                                            `Faltan ${parseInt(formData.total_cuotas) - parseInt(formData.cuota_actual || '0')} cuotas` 
+                                            : 'Ingresa 0 si es un préstamo nuevo'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Configuración específica para Ahorro */}
+                    {formData.es_ahorro && (
+                        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg space-y-4">
+                            <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-medium text-green-900 dark:text-green-100">Meta de ahorro</h4>
+                                <InfoIcon
+                                    title="Configuración automática de ahorro"
+                                    content={[
+                                        "Solo necesitas proporcionar la información básica de tu meta.",
+                                        "El sistema generará automáticamente:",
+                                        "• Todos los meses restantes hasta tu meta",
+                                        "• Numeración correlativa (Mes X/Total)",
+                                        "• Fechas de vencimiento mensuales",
+                                        "• Seguimiento de progreso acumulado"
+                                    ]}
+                                    size={14}
+                                />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        ¿En cuántos meses quieres lograrlo?
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="120"
+                                            value={formData.meses_objetivo}
+                                            onChange={(e) => setFormData({ ...formData, meses_objetivo: e.target.value })}
+                                            placeholder="Escribir o seleccionar..."
+                                            list="meses-options"
+                                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                            required
+                                        />
+                                        <datalist id="meses-options">
+                                            <option value="3">3 meses</option>
+                                            <option value="6">6 meses</option>
+                                            <option value="12">12 meses (1 año)</option>
+                                            <option value="18">18 meses (1.5 años)</option>
+                                            <option value="24">24 meses (2 años)</option>
+                                            <option value="36">36 meses (3 años)</option>
+                                            <option value="48">48 meses (4 años)</option>
+                                            <option value="60">60 meses (5 años)</option>
+                                        </datalist>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {formData.meses_objetivo ? `${formData.meses_objetivo} meses = ${Math.round(parseInt(formData.meses_objetivo) / 12 * 10) / 10} años` : 'Define tu plazo para ahorrar'}
+                                    </p>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        ¿Cuántos meses ya ahorraste?
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={formData.meses_objetivo ? parseInt(formData.meses_objetivo) - 1 : 60}
+                                        value={formData.mes_actual}
+                                        onChange={(e) => setFormData({ ...formData, mes_actual: e.target.value })}
+                                        placeholder="0"
+                                        className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {formData.meses_objetivo && formData.mes_actual ? 
+                                            `Faltan ${parseInt(formData.meses_objetivo) - parseInt(formData.mes_actual || '0')} meses` 
+                                            : 'Ingresa 0 si es un ahorro nuevo'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    ¿Cuánto ya tienes ahorrado? (opcional)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={formData.monto_ya_ahorrado}
+                                    onChange={(e) => setFormData({ ...formData, monto_ya_ahorrado: e.target.value })}
+                                    placeholder="0"
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    {formData.monto_ya_ahorrado && formData.monto && formData.meses_objetivo ? 
+                                        `Con ${formatCurrency(parseFloat(formData.monto_ya_ahorrado))} ya ahorrado, el total sería ${formatCurrency(parseFloat(formData.monto_ya_ahorrado) + (parseFloat(formData.monto) * parseInt(formData.meses_objetivo)))}` 
+                                        : 'Monto que ya tienes separado para esta meta'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex items-center">
                         <input
                             type="checkbox"
@@ -937,50 +1385,6 @@ export default function GastosFijos() {
                         <label htmlFor="activo" className="ml-2 block text-sm text-gray-900 dark:text-gray-100 transition-colors duration-200">
                             Activo
                         </label>
-                    </div>
-
-                    {/* Campos para gastos recurrentes */}
-                    <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                        <div className="flex items-center mb-4">
-                            <input
-                                type="checkbox"
-                                id="es_recurrente"
-                                checked={formData.es_recurrente}
-                                onChange={(e) => setFormData({ ...formData, es_recurrente: e.target.checked, duracion_meses: e.target.checked ? formData.duracion_meses : '' })}
-                                className="h-4 w-4 text-primary-600 focus:ring-primary-500 dark:focus:ring-primary-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded transition-colors duration-200"
-                            />
-                            <label htmlFor="es_recurrente" className="ml-2 block text-sm font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">
-                                Gasto Fijo Recurrente
-                            </label>
-                        </div>
-                        
-                        {formData.es_recurrente && (
-                            <div className="ml-6 space-y-3">
-                                <Input
-                                    label="Duración en meses"
-                                    type="number"
-                                    min="1"
-                                    max="120"
-                                    value={formData.duracion_meses}
-                                    onChange={(e) => setFormData({ ...formData, duracion_meses: e.target.value })}
-                                    placeholder="6"
-                                    helperText="¿Cuántos meses durará este gasto fijo? (ej: 6 meses, 12 meses)"
-                                    required
-                                />
-                                
-                                <div className="text-sm text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-                                    <div className="flex items-start">
-                                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                        </svg>
-                                        <div>
-                                            <p className="font-medium">Gasto Recurrente:</p>
-                                            <p>Se creará automáticamente un gasto pendiente cada mes durante {formData.duracion_meses || 'X'} meses.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4">

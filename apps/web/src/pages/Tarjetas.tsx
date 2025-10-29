@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input, MetricCard, InfoIcon } from '../components/ui';
 import { notifications } from '../utils/notifications';
+import { CreditCard, DollarSign, FileText } from 'lucide-react';
 
 interface Tarjeta {
     id: number;
@@ -287,29 +288,24 @@ export default function Tarjetas() {
                 </div>
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                     <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 transition-colors duration-200">
-                        <button
+                        <Button
                             onClick={() => setVistaActual('tarjetas')}
-                            className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-all duration-200 ${vistaActual === 'tarjetas'
-                                    ? 'bg-primary-600 dark:bg-primary-600 text-white'
-                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
+                            variant={vistaActual === 'tarjetas' ? 'primary' : 'ghost'}
+                            size="sm"
+                            className="rounded-r-none border-r border-gray-300 dark:border-gray-600"
                         >
                             Tarjetas
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => setVistaActual('consumos')}
-                            className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-all duration-200 ${vistaActual === 'consumos'
-                                    ? 'bg-primary-600 dark:bg-primary-600 text-white'
-                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                                }`}
+                            variant={vistaActual === 'consumos' ? 'primary' : 'ghost'}
+                            size="sm"
+                            className="rounded-l-none"
                         >
                             Consumos
-                        </button>
+                        </Button>
                     </div>
                     <Button onClick={vistaActual === 'tarjetas' ? handleNewTarjeta : handleNewConsumo}>
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
                         {vistaActual === 'tarjetas' ? 'Nueva Tarjeta' : 'Nuevo Consumo'}
                     </Button>
                 </div>
@@ -317,53 +313,24 @@ export default function Tarjetas() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Tarjetas Activas</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{tarjetasActivas}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Consumos</p>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalConsumos)}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Registros</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{consumosFiltrados.length}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Tarjetas Activas"
+                    value={tarjetasActivas.toString()}
+                    icon={<CreditCard className="w-5 h-5" />}
+                    iconColor="blue"
+                />
+                <MetricCard
+                    title="Total Consumos"
+                    value={formatCurrency(totalConsumos)}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="red"
+                />
+                <MetricCard
+                    title="Registros"
+                    value={consumosFiltrados.length.toString()}
+                    icon={<FileText className="w-5 h-5" />}
+                    iconColor="purple"
+                />
             </div>
 
             {/* Vista de Tarjetas */}
@@ -573,27 +540,67 @@ export default function Tarjetas() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <Input
-                                    label="Día de corte"
-                                    type="number"
-                                    min="1"
-                                    max="31"
-                                    value={formDataTarjeta.dia_corte}
-                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_corte: e.target.value })}
-                                    placeholder="15"
-                                    helperText="Opcional"
-                                />
+                                <div>
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                            Día de corte
+                                        </label>
+                                        <InfoIcon
+                                            title="Día de corte"
+                                            content={[
+                                                "Día del mes en que se cierra el período de facturación de la tarjeta.",
+                                                "",
+                                                "¿Para qué sirve?",
+                                                "• Define cuándo terminan de contabilizarse los consumos",
+                                                "• Los consumos después de esta fecha van al siguiente período",
+                                                "• Campo opcional - puedes dejarlo vacío si no lo necesitas",
+                                                "",
+                                                "Ejemplo: Si el corte es el día 15, todos los consumos del 16 del mes anterior al 15 del mes actual se incluyen en la misma facturación."
+                                            ]}
+                                            size={14}
+                                        />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        value={formDataTarjeta.dia_corte}
+                                        onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_corte: e.target.value })}
+                                        placeholder="15"
+                                        className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    />
+                                </div>
 
-                                <Input
-                                    label="Día de vencimiento"
-                                    type="number"
-                                    min="1"
-                                    max="31"
-                                    value={formDataTarjeta.dia_vencimiento}
-                                    onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_vencimiento: e.target.value })}
-                                    placeholder="5"
-                                    helperText="Opcional"
-                                />
+                                <div>
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                            Día de vencimiento
+                                        </label>
+                                        <InfoIcon
+                                            title="Día de vencimiento"
+                                            content={[
+                                                "Día del mes en que vence el pago de la tarjeta de crédito.",
+                                                "",
+                                                "¿Para qué sirve?",
+                                                "• Te ayuda a recordar cuándo debes pagar",
+                                                "• Útil para planificar el flujo de efectivo",
+                                                "• Campo opcional - puedes dejarlo vacío si no lo necesitas",
+                                                "",
+                                                "Ejemplo: Si el vencimiento es el día 5, debes pagar antes de esa fecha para evitar intereses."
+                                            ]}
+                                            size={14}
+                                        />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        value={formDataTarjeta.dia_vencimiento}
+                                        onChange={(e) => setFormDataTarjeta({ ...formDataTarjeta, dia_vencimiento: e.target.value })}
+                                        placeholder="5"
+                                        className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex items-center">
@@ -670,16 +677,35 @@ export default function Tarjetas() {
                                 </select>
                             </div>
 
-                            <Input
-                                label="Número de cuotas"
-                                type="number"
-                                min="1"
-                                max="48"
-                                value={formDataConsumo.cuotas}
-                                onChange={(e) => setFormDataConsumo({ ...formDataConsumo, cuotas: e.target.value })}
-                                helperText="1 = Pago al contado"
-                                required
-                            />
+                            <div>
+                                <div className="flex items-center gap-1 mb-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                        Número de cuotas
+                                    </label>
+                                    <InfoIcon
+                                        title="Número de cuotas"
+                                        content={[
+                                            "¿En cuántas cuotas quieres financiar este consumo?",
+                                            "",
+                                            "Opciones:",
+                                            "• 1 cuota = Pago al contado (sin financiación)",
+                                            "• 2-48 cuotas = Financiación en cuotas",
+                                            "",
+                                            "El sistema distribuirá automáticamente el monto entre las cuotas seleccionadas y las programará mes a mes."
+                                        ]}
+                                        size={14}
+                                    />
+                                </div>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="48"
+                                    value={formDataConsumo.cuotas}
+                                    onChange={(e) => setFormDataConsumo({ ...formDataConsumo, cuotas: e.target.value })}
+                                    className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                    required
+                                />
+                            </div>
                         </>
                     )}
 

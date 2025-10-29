@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input, MetricCard, InfoIcon } from '../components/ui';
 import { notifications } from '../utils/notifications';
+import { DollarSign, Clock, CheckCircle } from 'lucide-react';
 
 interface Ingreso {
     id: number;
@@ -479,9 +480,6 @@ export default function Ingresos() {
 
                     <div className="flex-shrink-0">
                         <Button onClick={handleNew}>
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
                             Nuevo Ingreso
                         </Button>
                     </div>
@@ -490,53 +488,24 @@ export default function Ingresos() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Cobrado</p>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalIngresos)}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Pendientes</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{ingresosPendientes}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Pagados</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{ingresosPagados}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Total Cobrado"
+                    value={formatCurrency(totalIngresos)}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="green"
+                />
+                <MetricCard
+                    title="Pendientes"
+                    value={ingresosPendientes.toString()}
+                    icon={<Clock className="w-5 h-5" />}
+                    iconColor="yellow"
+                />
+                <MetricCard
+                    title="Pagados"
+                    value={ingresosPagados.toString()}
+                    icon={<CheckCircle className="w-5 h-5" />}
+                    iconColor="green"
+                />
             </div>
 
             {/* Lista de Ingresos */}
@@ -672,22 +641,25 @@ export default function Ingresos() {
                 size="md"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                        label="Descripción"
-                        value={formData.descripcion}
-                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                        placeholder="Ej. Sueldo Octubre"
-                        required
-                    />
-
-                    <Input
-                        label="Monto"
-                        type="number"
-                        value={formData.monto}
-                        onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                        placeholder="0"
-                        required
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                            <Input
+                                label="Descripción"
+                                value={formData.descripcion}
+                                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                placeholder="Ej. Sueldo Octubre"
+                                required
+                            />
+                        </div>
+                        <Input
+                            label="Monto"
+                            type="number"
+                            value={formData.monto}
+                            onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
+                            placeholder="0"
+                            required
+                        />
+                    </div>
 
                     <Input
                         label="Fecha"
@@ -697,36 +669,38 @@ export default function Ingresos() {
                         required
                     />
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-                            Cuenta destino
-                        </label>
-                        <select
-                            value={formData.cuenta_id}
-                            onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
-                            required
-                        >
-                            <option value="">Seleccionar cuenta</option>
-                            {cuentas.map(cuenta => (
-                                <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                Cuenta destino
+                            </label>
+                            <select
+                                value={formData.cuenta_id}
+                                onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            >
+                                <option value="">Seleccionar cuenta</option>
+                                {cuentas.map(cuenta => (
+                                    <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-                            Estado
-                        </label>
-                        <select
-                            value={formData.estado}
-                            onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'PAGADO' })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
-                            required
-                        >
-                            <option value="PENDIENTE">Pendiente</option>
-                            <option value="PAGADO">Pagado</option>
-                        </select>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
+                                Estado
+                            </label>
+                            <select
+                                value={formData.estado}
+                                onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'PENDIENTE' | 'PAGADO' })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                required
+                            >
+                                <option value="PENDIENTE">Pendiente</option>
+                                <option value="PAGADO">Pagado</option>
+                            </select>
+                        </div>
                     </div>
 
                     {/* Sección de Ingresos Recurrentes */}
@@ -742,25 +716,75 @@ export default function Ingresos() {
                             <label htmlFor="es_recurrente" className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
                                 💰 Ingreso recurrente (se repite automáticamente)
                             </label>
+                            <InfoIcon
+                                title="Ingreso Recurrente"
+                                content={[
+                                    "Cuando activas esta opción, el sistema generará automáticamente ingresos futuros.",
+                                    "",
+                                    "Características:",
+                                    "• Se crea un ingreso pendiente cada mes en el día especificado",
+                                    "• Ideal para salarios, pensiones, rentas, etc.",
+                                    "• El sistema mantiene un registro del ingreso original",
+                                    "• Puedes modificar o cancelar ingresos futuros individualmente"
+                                ]}
+                                className="ml-1"
+                                size={14}
+                            />
                         </div>
 
                         {formData.es_recurrente && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6 border-l-2 border-primary-200 dark:border-primary-600">
-                                <Input
-                                    label="Día del mes"
-                                    type="number"
-                                    min="1"
-                                    max="31"
-                                    value={formData.dia_mes}
-                                    onChange={(e) => setFormData({ ...formData, dia_mes: e.target.value })}
-                                    placeholder="15"
-                                    helperText="Día en que se recibe (1-31)"
-                                    required={formData.es_recurrente}
-                                />
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-                                        Frecuencia
-                                    </label>
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                            Día del mes
+                                        </label>
+                                        <InfoIcon
+                                            title="Día del mes"
+                                            content={[
+                                                "¿Qué día del mes se recibe este ingreso?",
+                                                "",
+                                                "Ejemplos:",
+                                                "• 15 - Si el salario se paga el día 15 de cada mes",
+                                                "• 1 - Si se recibe el primer día del mes",
+                                                "• 30 - Si se recibe a fin de mes",
+                                                "",
+                                                "Para meses que no tienen el día especificado (ej: día 31 en febrero), se usará el último día del mes."
+                                            ]}
+                                            size={14}
+                                        />
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="31"
+                                        value={formData.dia_mes}
+                                        onChange={(e) => setFormData({ ...formData, dia_mes: e.target.value })}
+                                        placeholder="15"
+                                        className="block w-full rounded-md border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
+                                        required={formData.es_recurrente}
+                                    />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                            Frecuencia
+                                        </label>
+                                        <InfoIcon
+                                            title="Frecuencia de ingreso"
+                                            content={[
+                                                "¿Con qué frecuencia se recibe este ingreso?",
+                                                "",
+                                                "Opciones disponibles:",
+                                                "• Mensual - Cada mes (salarios, pensiones)",
+                                                "• Bimestral - Cada 2 meses",
+                                                "• Trimestral - Cada 3 meses (dividendos)",
+                                                "• Semestral - Cada 6 meses",
+                                                "• Anual - Cada año (bonus, aguinaldos)"
+                                            ]}
+                                            size={14}
+                                        />
+                                    </div>
                                     <select
                                         value={formData.frecuencia_meses}
                                         onChange={(e) => setFormData({ ...formData, frecuencia_meses: e.target.value })}

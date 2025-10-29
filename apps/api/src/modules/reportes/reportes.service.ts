@@ -257,6 +257,88 @@ export class ReportesService {
         };
     }
 
+    async calcularSaldoAcumulado(usuarioId: number, mes: string): Promise<number> {
+        // Buscar el saldo acumulado más reciente antes del mes dado
+        const saldoAnterior = await this.db.query<QueryResult>(
+            `SELECT saldo_acumulado 
+             FROM movimientos 
+             WHERE usuario_id = ? AND tipo = 'SALDO_ACUMULADO' 
+             AND DATE_FORMAT(fecha, '%Y-%m') < ? 
+             ORDER BY fecha DESC 
+             LIMIT 1`,
+            [usuarioId, mes]
+        );
+
+        let saldoBase = 0;
+        if (saldoAnterior.length > 0) {
+            saldoBase = parseFloat(saldoAnterior[0].saldo_acumulado || '0');
+        }
+
+        // Obtener el resumen del mes actual
+        const resumenMes = await this.obtenerResumenMes(usuarioId, mes);
+        const saldoMesActual = resumenMes.saldo_neto;
+
+        // Calcular el saldo acumulado
+        const saldoAcumulado = saldoBase + saldoMesActual;
+
+        return saldoAcumulado;
+    }
+
+    async actualizarSaldoAcumulado(usuarioId: number, mes: string): Promise<void> {
+        const saldoAcumulado = await this.calcularSaldoAcumulado(usuarioId, mes);
+        const fechaMes = new Date(mes + '-01');
+
+        // Verificar si ya existe un registro de saldo acumulado para este mes
+        const existente = await this.db.query<QueryResult>(
+            `SELECT id FROM movimientos 
+             WHERE usuario_id = ? AND tipo = 'SALDO_ACUMULADO' 
+             AND DATE_FORMAT(fecha, '%Y-%m') = ?`,
+            [usuarioId, mes]
+        );
+
+        if (existente.length > 0) {
+            // Actualizar el registro existente
+            await this.db.query(
+                `UPDATE movimientos 
+                 SET saldo_acumulado = ? 
+                 WHERE id = ?`,
+                [saldoAcumulado, existente[0].id]
+            );
+        } else {
+            // Crear un nuevo registro
+            await this.db.query(
+                `INSERT INTO movimientos (usuario_id, tipo, concepto, monto, fecha, saldo_acumulado, cuenta_origen_id) 
+                 VALUES (?, 'SALDO_ACUMULADO', ?, 0, ?, ?, 
+                    (SELECT id FROM cuentas WHERE usuario_id = ? AND activa = true LIMIT 1))`,
+                [
+                    usuarioId, 
+                    `Saldo acumulado ${mes}`, 
+                    fechaMes, 
+                    saldoAcumulado,
+                    usuarioId
+                ]
+            );
+        }
+    }
+
+    async obtenerSaldosAcumulados(usuarioId: number, mesesAtras: number = 12): Promise<Array<{mes: string, saldo_acumulado: number}>> {
+        const resultados = await this.db.query<QueryResult>(
+            `SELECT 
+                DATE_FORMAT(fecha, '%Y-%m') as mes,
+                saldo_acumulado
+             FROM movimientos 
+             WHERE usuario_id = ? AND tipo = 'SALDO_ACUMULADO'
+             AND fecha >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+             ORDER BY fecha ASC`,
+            [usuarioId, mesesAtras]
+        );
+
+        return resultados.map(r => ({
+            mes: r.mes,
+            saldo_acumulado: parseFloat(r.saldo_acumulado || '0')
+        }));
+    }
+
     private async generarAlertas(usuarioId: number, mes: string, ingresos: number, gastos: number, porcentajeAhorro: number) {
         const alertas = [];
 

@@ -1,6 +1,7 @@
 import {
     Controller,
     Get,
+    Post,
     Param,
     Query,
     ParseIntPipe,
@@ -11,7 +12,9 @@ import {
     DistribucionGastosResponse,
     ResumenCuentasResponse,
     AlertasResponse,
-    ComparativoMesesResponse
+    ComparativoMesesResponse,
+    SaldoAcumuladoResponse,
+    ResumenConSaldoAcumuladoResponse
 } from './reportes.dto';
 
 @Controller('reportes')
@@ -55,5 +58,45 @@ export class ReportesController {
         @Query('mes') mes: string,
     ): Promise<ComparativoMesesResponse> {
         return this.reportesService.obtenerComparativoMeses(usuarioId, mes);
+    }
+
+    @Get('saldo-acumulado/:usuarioId')
+    async obtenerSaldosAcumulados(
+        @Param('usuarioId', ParseIntPipe) usuarioId: number,
+        @Query('meses') meses: string = '12',
+    ): Promise<SaldoAcumuladoResponse[]> {
+        return this.reportesService.obtenerSaldosAcumulados(usuarioId, parseInt(meses));
+    }
+
+    @Post('saldo-acumulado/:usuarioId/calcular')
+    async calcularSaldoAcumulado(
+        @Param('usuarioId', ParseIntPipe) usuarioId: number,
+        @Query('mes') mes: string,
+    ): Promise<{ saldo_acumulado: number }> {
+        const saldo = await this.reportesService.calcularSaldoAcumulado(usuarioId, mes);
+        return { saldo_acumulado: saldo };
+    }
+
+    @Post('saldo-acumulado/:usuarioId/actualizar')
+    async actualizarSaldoAcumulado(
+        @Param('usuarioId', ParseIntPipe) usuarioId: number,
+        @Query('mes') mes: string,
+    ): Promise<{ mensaje: string }> {
+        await this.reportesService.actualizarSaldoAcumulado(usuarioId, mes);
+        return { mensaje: 'Saldo acumulado actualizado correctamente' };
+    }
+
+    @Get('resumen-completo/:usuarioId')
+    async obtenerResumenCompleto(
+        @Param('usuarioId', ParseIntPipe) usuarioId: number,
+        @Query('mes') mes: string,
+    ): Promise<ResumenConSaldoAcumuladoResponse> {
+        const resumen = await this.reportesService.obtenerResumenMes(usuarioId, mes);
+        const saldoAcumulado = await this.reportesService.calcularSaldoAcumulado(usuarioId, mes);
+        
+        return {
+            ...resumen,
+            saldo_acumulado: saldoAcumulado
+        };
     }
 }

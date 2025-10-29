@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Table, Button, Input, Modal } from '../components/ui';
+import { Card, CardHeader, CardTitle, Table, Button, Input, Modal, MetricCard } from '../components/ui';
 import { notifications } from '../utils/notifications';
-import { Eye, Filter, RotateCcw, RefreshCw } from 'lucide-react';
+import { Eye, Filter, RotateCcw, RefreshCw, ArrowRightLeft, TrendingUp, TrendingDown, Scale } from 'lucide-react';
 
 // Interfaces para movimientos
 interface Movimiento {
@@ -351,59 +351,50 @@ export default function Movimientos() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <Card>
-                    <div className="p-4 transition-colors duration-200">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200 mb-1">Total Movimientos</p>
-                        <p className="text-xl font-bold text-gray-900 dark:text-gray-100 transition-colors duration-200">
-                            {movimientos.length}
-                        </p>
-                    </div>
-                </Card>
-                <Card>
-                    <div className="p-4 transition-colors duration-200">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200 mb-1">Total Ingresos</p>
-                        <p className="text-lg font-bold text-green-600 dark:text-green-400 transition-colors duration-200">
-                            {formatCurrency(
-                                movimientos
-                                    .filter(m => m.tipo === 'INGRESO')
-                                    .reduce((sum, m) => sum + (typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto), 0)
-                            )}
-                        </p>
-                    </div>
-                </Card>
-                <Card>
-                    <div className="p-4 transition-colors duration-200">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200 mb-1">Total Gastos</p>
-                        <p className="text-lg font-bold text-red-600 dark:text-red-400 transition-colors duration-200">
-                            {formatCurrency(
-                                movimientos
-                                    .filter(m => m.tipo === 'GASTO')
-                                    .reduce((sum, m) => sum + (typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto), 0)
-                            )}
-                        </p>
-                    </div>
-                </Card>
-                <Card>
-                    <div className="p-4 transition-colors duration-200">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200 mb-1">Balance Neto</p>
-                        <p className={`text-lg font-bold transition-colors duration-200 ${
-                            movimientos
-                                .reduce((sum, m) => {
-                                    const monto = typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto;
-                                    return sum + (m.tipo === 'INGRESO' ? monto : -monto);
-                                }, 0) >= 0 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : 'text-red-600 dark:text-red-400'
-                        }`}>
-                            {formatCurrency(
-                                movimientos.reduce((sum, m) => {
-                                    const monto = typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto;
-                                    return sum + (m.tipo === 'INGRESO' ? monto : -monto);
-                                }, 0)
-                            )}
-                        </p>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Total Movimientos"
+                    value={movimientos.length.toString()}
+                    icon={<ArrowRightLeft className="w-5 h-5" />}
+                    iconColor="blue"
+                />
+                <MetricCard
+                    title="Total Ingresos"
+                    value={formatCurrency(
+                        movimientos
+                            .filter(m => m.tipo === 'INGRESO')
+                            .reduce((sum, m) => sum + (typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto), 0)
+                    )}
+                    icon={<TrendingUp className="w-5 h-5" />}
+                    iconColor="green"
+                />
+                <MetricCard
+                    title="Total Gastos"
+                    value={formatCurrency(
+                        movimientos
+                            .filter(m => m.tipo === 'GASTO')
+                            .reduce((sum, m) => sum + (typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto), 0)
+                    )}
+                    icon={<TrendingDown className="w-5 h-5" />}
+                    iconColor="red"
+                />
+                <MetricCard
+                    title="Balance Neto"
+                    value={formatCurrency(
+                        movimientos.reduce((sum, m) => {
+                            const monto = typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto;
+                            return sum + (m.tipo === 'INGRESO' ? monto : -monto);
+                        }, 0)
+                    )}
+                    icon={<Scale className="w-5 h-5" />}
+                    iconColor={
+                        movimientos.reduce((sum, m) => {
+                            const monto = typeof m.monto === 'string' ? parseFloat(m.monto) : m.monto;
+                            return sum + (m.tipo === 'INGRESO' ? monto : -monto);
+                        }, 0) >= 0 
+                            ? "green" 
+                            : "red"
+                    }
+                />
             </div>
 
             {/* Tabla de Movimientos */}

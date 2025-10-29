@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input, MetricCard } from '../components/ui';
 import { notifications } from '../utils/notifications';
+import { DollarSign, Calculator, BarChart3, TrendingUp } from 'lucide-react';
 
 interface GastoAdicional {
     id: number;
@@ -492,70 +493,31 @@ export default function GastosAdicionales() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Gastado</p>
-                            <p className="text-xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalGastos)}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Promedio por Gasto</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(promedioGasto)}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Registros</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{gastosFilter.length}</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Mayor Categoría</p>
-                            <p className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-200">{categoriaConMayorGasto.categoria || 'N/A'}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">{formatCurrency(categoriaConMayorGasto.monto)}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Total Gastado"
+                    value={formatCurrency(totalGastos)}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="red"
+                />
+                <MetricCard
+                    title="Promedio por Gasto"
+                    value={formatCurrency(promedioGasto)}
+                    icon={<Calculator className="w-5 h-5" />}
+                    iconColor="blue"
+                />
+                <MetricCard
+                    title="Total Registros"
+                    value={gastosFilter.length.toString()}
+                    icon={<BarChart3 className="w-5 h-5" />}
+                    iconColor="purple"
+                />
+                <MetricCard
+                    title="Mayor Categoría"
+                    value={categoriaConMayorGasto.categoria || 'N/A'}
+                    subtitle={formatCurrency(categoriaConMayorGasto.monto)}
+                    icon={<TrendingUp className="w-5 h-5" />}
+                    iconColor="green"
+                />
             </div>
 
             {/* Resumen por Categorías */}
@@ -724,22 +686,25 @@ export default function GastosAdicionales() {
                 size="md"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                        label="Descripción"
-                        value={formData.descripcion}
-                        onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                        placeholder="Ej. Cena Restaurante"
-                        required
-                    />
-
-                    <Input
-                        label="Monto"
-                        type="number"
-                        value={formData.monto}
-                        onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                        placeholder="0"
-                        required
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2">
+                            <Input
+                                label="Descripción"
+                                value={formData.descripcion}
+                                onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                                placeholder="Ej. Cena Restaurante"
+                                required
+                            />
+                        </div>
+                        <Input
+                            label="Monto"
+                            type="number"
+                            value={formData.monto}
+                            onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
+                            placeholder="0"
+                            required
+                        />
+                    </div>
 
                     <Input
                         label="Fecha"
@@ -749,49 +714,53 @@ export default function GastosAdicionales() {
                         required
                     />
 
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
-                                Categoría
-                            </label>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setIsCategoriaModalOpen(true)}
-                                className="text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <div className="flex justify-between items-center mb-1 h-6">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                    Categoría
+                                </label>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setIsCategoriaModalOpen(true)}
+                                    className="text-xs px-2 py-1 border-primary-300 text-primary-600 hover:bg-primary-50 dark:border-primary-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                                >
+                                    + Nueva
+                                </Button>
+                            </div>
+                            <select
+                                value={formData.categoria}
+                                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
+                                required
                             >
-                                + Nueva
-                            </Button>
+                                <option value="">Seleccionar categoría</option>
+                                {categoriasDB.map(categoria => (
+                                    <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
+                                ))}
+                            </select>
                         </div>
-                        <select
-                            value={formData.categoria}
-                            onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
-                            required
-                        >
-                            <option value="">Seleccionar categoría</option>
-                            {categoriasDB.map(categoria => (
-                                <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-                            Cuenta de pago
-                        </label>
-                        <select
-                            value={formData.cuenta_id}
-                            onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
-                            className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
-                            required
-                        >
-                            <option value="">Seleccionar cuenta</option>
-                            {cuentas.map(cuenta => (
-                                <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
-                            ))}
-                        </select>
+                        <div>
+                            <div className="flex justify-between items-center mb-1 h-6">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                                    Cuenta de pago
+                                </label>
+                            </div>
+                            <select
+                                value={formData.cuenta_id}
+                                onChange={(e) => setFormData({ ...formData, cuenta_id: e.target.value })}
+                                className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm transition-colors duration-200"
+                                required
+                            >
+                                <option value="">Seleccionar cuenta</option>
+                                {cuentas.map(cuenta => (
+                                    <option key={cuenta.id} value={cuenta.id}>{cuenta.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     <div>
@@ -807,15 +776,6 @@ export default function GastosAdicionales() {
                             <option value="PENDIENTE">Pendiente</option>
                             <option value="PAGADO">Pagado</option>
                         </select>
-                        
-                        <div className="mt-2 text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md">
-                            <div className="flex items-start">
-                                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                </svg>
-                                <p><strong>Estado PENDIENTE:</strong> Puedes crearlo aunque no tengas saldo suficiente. Solo se descontará cuando lo marques como PAGADO.</p>
-                            </div>
-                        </div>
                     </div>
 
                     <div>

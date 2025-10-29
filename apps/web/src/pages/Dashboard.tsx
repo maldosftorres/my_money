@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, MetricCard, Modal } from '../components/ui';
 import { notifications } from '../utils/notifications';
+import {  DollarSign,  Home,  ShoppingCart,  Wallet,  TrendingUp,  TrendingDown,  Calendar,  CheckCircle,  Clock,  X } from 'lucide-react';
 
 // Interfaces para los datos reales de la BD
 interface Cuenta {
@@ -83,6 +84,7 @@ export default function Dashboard() {
     });
     const [loading, setLoading] = useState(true);
     const [filtroMes, setFiltroMes] = useState<string>(new Date().toISOString().slice(0, 7));
+    const [showDetalleModal, setShowDetalleModal] = useState(false);
 
     useEffect(() => {
         loadAllData();
@@ -168,6 +170,8 @@ export default function Dashboard() {
             console.error('Error al cargar gastos adicionales:', error);
         }
     };
+
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('es-PY', {
             minimumFractionDigits: 0,
@@ -210,6 +214,8 @@ export default function Dashboard() {
         }
         return sum;
     }, 0);
+
+
     
     const totalGastosAdicionales = datosFinancieros.gastosAdicionales.reduce((sum, gasto) => {
         // Solo contar gastos adicionales PAGADOS
@@ -225,11 +231,165 @@ export default function Dashboard() {
         return sum + (saldo || 0);
     }, 0);
     
-    const saldoRestante = totalIngresos - totalGastosFijos - totalGastosAdicionales;
-    const porcentajeGastado = totalIngresos > 0 ? ((totalGastosFijos + totalGastosAdicionales) / totalIngresos) * 100 : 0;
+    // CÁLCULOS PARA VISIÓN FUTURA (Saldo Restante del Mes)
+    const mesActual = filtroMes || new Date().toISOString().slice(0, 7); // YYYY-MM
+    
+    // TODOS los ingresos del mes (pagados y pendientes)
+    const totalIngresosDelMes = datosFinancieros.ingresos.reduce((sum, ingreso) => {
+        const fechaIngreso = ingreso.fecha.slice(0, 7); // YYYY-MM
+        if (fechaIngreso === mesActual) {
+            const monto = typeof ingreso.monto === 'string' ? parseFloat(ingreso.monto) : ingreso.monto;
+            console.log(`Ingreso del mes ${mesActual}:`, ingreso.concepto, monto);
+            return sum + (monto || 0);
+        }
+        return sum;
+    }, 0);
+    
+    // TODOS los gastos fijos del mes (pagados y pendientes)
+    const totalGastosFijosDelMes = datosFinancieros.gastosFijos.reduce((sum, gasto) => {
+        const fechaGasto = gasto.fecha.slice(0, 7); // YYYY-MM
+        if (fechaGasto === mesActual) {
+            const monto = typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto;
+            console.log(`Gasto fijo del mes ${mesActual}:`, gasto.concepto, monto);
+            return sum + (monto || 0);
+        }
+        return sum;
+    }, 0);
+
+
+    
+    // TODOS los gastos adicionales del mes (pagados y pendientes)
+    const totalGastosAdicionalesDelMes = datosFinancieros.gastosAdicionales.reduce((sum, gasto) => {
+        const fechaGasto = gasto.fecha.slice(0, 7); // YYYY-MM
+        if (fechaGasto === mesActual) {
+            const monto = typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto;
+            console.log(`Gasto adicional del mes ${mesActual}:`, gasto.concepto, monto);
+            return sum + (monto || 0);
+        }
+        return sum;
+    }, 0);
+    
+    console.log(`Totales del mes ${mesActual}:`, {
+        ingresos: totalIngresosDelMes,
+        gastosFijos: totalGastosFijosDelMes,
+        gastosAdicionales: totalGastosAdicionalesDelMes,
+        saldoDelMes: totalIngresosDelMes - totalGastosFijosDelMes - totalGastosAdicionalesDelMes
+    });
+    
+
+    
+    // Por ahora usamos solo el cálculo manual hasta que el backend esté completamente funcional
+
+    // Calcular correctamente el saldo acumulado de meses anteriores
+    const calcularSaldoAcumuladoAnterior = () => {
+        if (!filtroMes) return 0; // Si no hay filtro, no hay meses anteriores
+        
+        let saldoAcumulado = 0;
+        
+        // Obtener todos los meses únicos donde hubo MOVIMIENTOS REALES (pagados) anteriores al mes filtrado
+        const mesesConDatos = new Set<string>();
+        
+        // Agregar meses de ingresos PAGADOS anteriores
+        datosFinancieros.ingresos.forEach(ing => {
+            const mesIngreso = ing.fecha.slice(0, 7);
+            if (mesIngreso < filtroMes && ing.estado === 'PAGADO') {
+                mesesConDatos.add(mesIngreso);
+            }
+        });
+        
+        // Agregar meses de gastos fijos PAGADOS anteriores
+        datosFinancieros.gastosFijos.forEach(gasto => {
+            const mesGasto = gasto.fecha.slice(0, 7);
+            if (mesGasto < filtroMes && gasto.estado === 'PAGADO') {
+                mesesConDatos.add(mesGasto);
+            }
+        });
+
+
+        
+        // Agregar meses de gastos adicionales PAGADOS anteriores
+        datosFinancieros.gastosAdicionales.forEach(gasto => {
+            const mesGasto = gasto.fecha.slice(0, 7);
+            if (mesGasto < filtroMes && gasto.estado === 'PAGADO') {
+                mesesConDatos.add(mesGasto);
+            }
+        });
+        
+        // Calcular saldo de cada mes anterior
+        Array.from(mesesConDatos).sort().forEach(mesAnterior => {
+            // Ingresos del mes anterior (solo PAGADOS - movimientos reales)
+            const ingresosDelMes = datosFinancieros.ingresos.reduce((sum, ing) => {
+                if (ing.fecha.slice(0, 7) === mesAnterior && ing.estado === 'PAGADO') {
+                    const monto = typeof ing.monto === 'string' ? parseFloat(ing.monto) : ing.monto;
+                    return sum + (monto || 0);
+                }
+                return sum;
+            }, 0);
+            
+            // Gastos fijos del mes anterior (solo PAGADOS - movimientos reales)
+            const gastosFijosDelMes = datosFinancieros.gastosFijos.reduce((sum, gasto) => {
+                if (gasto.fecha.slice(0, 7) === mesAnterior && gasto.estado === 'PAGADO') {
+                    const monto = typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto;
+                    return sum + (monto || 0);
+                }
+                return sum;
+            }, 0);
+
+            // Ahorros del mes anterior - eliminado
+            
+            // Gastos adicionales del mes anterior (solo PAGADOS - movimientos reales)
+            const gastosAdicionalesDelMes = datosFinancieros.gastosAdicionales.reduce((sum, gasto) => {
+                if (gasto.fecha.slice(0, 7) === mesAnterior && gasto.estado === 'PAGADO') {
+                    const monto = typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto;
+                    return sum + (monto || 0);
+                }
+                return sum;
+            }, 0);
+            
+            // SALDO NETO del mes = Ingresos - Gastos (sin ahorros)
+            const saldoNetoDelMes = ingresosDelMes - gastosFijosDelMes - gastosAdicionalesDelMes;
+            
+            // Acumular SOLO el saldo neto (no los gastos individuales)
+            saldoAcumulado += saldoNetoDelMes;
+            
+            console.log(`Mes anterior ${mesAnterior}:`, {
+                ingresos: ingresosDelMes,
+                gastosFijos: gastosFijosDelMes,
+                gastosAdicionales: gastosAdicionalesDelMes,
+                saldoNetoDelMes,
+                saldoAcumuladoHastaAhora: saldoAcumulado
+            });
+        });
+        
+        console.log('Saldo acumulado total de meses anteriores:', saldoAcumulado);
+        return saldoAcumulado;
+    };
+    
+    const saldoAcumuladoAnterior = calcularSaldoAcumuladoAnterior();
+    
+    // SALDO RESTANTE = Saldo base + Saldo acumulado anterior + (Ingresos del mes - Gastos del mes)
+    const saldoDelMesActual = totalIngresosDelMes - totalGastosFijosDelMes - totalGastosAdicionalesDelMes;
+    const saldoRestante = totalCuentas + saldoAcumuladoAnterior + saldoDelMesActual;
+    
+    console.log('Cálculo del saldo restante:', {
+        totalCuentas,
+        saldoAcumuladoAnterior,
+        saldoDelMesActual,
+        saldoRestante,
+        mesActual: filtroMes
+    });
+    
+    // CÁLCULOS PARA REALIDAD ACTUAL (Saldo Real)
+    const saldoRealActual = totalCuentas + totalIngresos - totalGastosFijos - totalGastosAdicionales;
+    
+    // Porcentaje para la barra de progreso (basado en ingresos del mes)
+    const porcentajeGastado = totalIngresosDelMes > 0 ? ((totalGastosFijosDelMes + totalGastosAdicionalesDelMes) / totalIngresosDelMes) * 100 : 0;
 
     // Distribución de gastos por categoría con datos reales - Solo PAGADOS
-    const gastosPorCategoria = [...datosFinancieros.gastosFijos, ...datosFinancieros.gastosAdicionales]
+    const gastosPorCategoria = [
+        ...datosFinancieros.gastosFijos, 
+        ...datosFinancieros.gastosAdicionales
+    ]
         .filter(gasto => gasto.estado === 'PAGADO') // Solo gastos pagados
         .reduce((acc, gasto) => {
             const categoria = gasto.categoria_nombre || 'Sin categoría';
@@ -242,25 +402,39 @@ export default function Dashboard() {
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5);
 
-    // Movimientos recientes (últimos 7 días)
+    // Movimientos recientes (últimos 7 días) - Solo PAGADOS
     const fechaLimite = new Date();
     fechaLimite.setDate(fechaLimite.getDate() - 7);
 
     const movimientosRecientes = [
-        ...datosFinancieros.ingresos.map(ing => ({
-            ...ing,
-            tipo: 'ingreso' as const,
-            fecha: ing.fecha,
-            categoria: 'Ingreso',
-            monto: typeof ing.monto === 'string' ? parseFloat(ing.monto) : ing.monto
-        })),
-        ...datosFinancieros.gastosAdicionales.map(gasto => ({
-            ...gasto,
-            tipo: 'gasto' as const,
-            fecha: gasto.fecha,
-            categoria: gasto.categoria_nombre || 'Sin categoría',
-            monto: typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto
-        }))
+        ...datosFinancieros.ingresos
+            .filter(ing => ing.estado === 'PAGADO') // Solo ingresos pagados
+            .map(ing => ({
+                ...ing,
+                tipo: 'ingreso' as const,
+                fecha: ing.fecha,
+                categoria: 'Ingreso',
+                monto: typeof ing.monto === 'string' ? parseFloat(ing.monto) : ing.monto
+            })),
+        ...datosFinancieros.gastosFijos
+            .filter(gasto => gasto.estado === 'PAGADO') // Solo gastos fijos pagados
+            .map(gasto => ({
+                ...gasto,
+                tipo: 'gasto' as const,
+                fecha: gasto.fecha,
+                categoria: gasto.categoria_nombre || 'Gasto Fijo',
+                monto: typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto
+            })),
+
+        ...datosFinancieros.gastosAdicionales
+            .filter(gasto => gasto.estado === 'PAGADO') // Solo gastos adicionales pagados
+            .map(gasto => ({
+                ...gasto,
+                tipo: 'gasto' as const,
+                fecha: gasto.fecha,
+                categoria: gasto.categoria_nombre || 'Gasto Adicional',
+                monto: typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto
+            }))
     ]
         .filter(mov => new Date(mov.fecha) >= fechaLimite)
         .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
@@ -276,7 +450,8 @@ export default function Dashboard() {
             'Seguros': 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
             'Alimentación': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
             'Transporte': 'bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200',
-            'Entretenimiento': 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200'
+            'Entretenimiento': 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200',
+
         };
         return colors[categoria as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     };
@@ -303,23 +478,25 @@ export default function Dashboard() {
                             id="mes"
                             value={filtroMes}
                             onChange={(e) => setFiltroMes(e.target.value)}
-                            className=" border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200"
+                            className="block w-36 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:border-primary-500 dark:focus:border-primary-400 focus:ring-primary-500 dark:focus:ring-primary-400 sm:text-sm transition-all duration-200"
                         />
-                        <button
+                        <Button
                             onClick={() => {
                                 setFiltroMes('');
                                 loadAllData();
                             }}
-                            className="px-4 py-2 text-sm bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors duration-200"
+                            variant="secondary"
+                            size="sm"
                         >
                             Limpiar filtro
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={loadAllData}
-                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
+                            variant="primary"
+                            size="sm"  
                         >
                             Actualizar
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -351,94 +528,71 @@ export default function Dashboard() {
             )}
 
             {/* Resumen de totales */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Ingresos</p>
-                            <p className="text-xl font-semibold text-green-600 dark:text-green-400 transition-colors duration-200">{formatCurrency(totalIngresos)}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200">{datosFinancieros.ingresos.length} registros</p>
-                        </div>
-                    </div>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <MetricCard
+                    title="Ingresos Confirmados"
+                    value={formatCurrency(totalIngresos)}
+                    subtitle={`${datosFinancieros.ingresos.filter(i => i.estado === 'PAGADO').length} de ${datosFinancieros.ingresos.length} registros`}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="green"
+                    valueColor="green"
+                />
 
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Gastos Fijos</p>
-                            <p className="text-xl font-semibold text-red-600 dark:text-red-400 transition-colors duration-200">{formatCurrency(totalGastosFijos)}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200">{datosFinancieros.gastosFijos.length} conceptos</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Gastos Fijos"
+                    value={formatCurrency(totalGastosFijos)}
+                    subtitle={`${datosFinancieros.gastosFijos.filter(g => g.estado === 'PAGADO').length} conceptos pagados`}
+                    icon={<Home className="w-5 h-5" />}
+                    iconColor="blue"
+                    valueColor="red"
+                />
 
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Gastos Variables</p>
-                            <p className="text-xl font-semibold text-orange-600 dark:text-orange-400 transition-colors duration-200">{formatCurrency(totalGastosAdicionales)}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200">{datosFinancieros.gastosAdicionales.length} registros</p>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Saldo Cuentas</p>
-                            <p className="text-xl font-semibold text-purple-600 dark:text-purple-400 transition-colors duration-200">{formatCurrency(totalCuentas)}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-200">{datosFinancieros.cuentas.length} cuentas</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Gastos Adicionales"
+                    value={formatCurrency(totalGastosAdicionales)}
+                    subtitle={`${datosFinancieros.gastosAdicionales.filter(g => g.estado === 'PAGADO').length} de ${datosFinancieros.gastosAdicionales.length} gastos`}
+                    icon={<ShoppingCart className="w-5 h-5" />}
+                    iconColor="red"
+                    valueColor="red"
+                />
             </div>
 
-            {/* Saldo restante y progreso */}
+            {/* Análisis Financiero: Futuro vs Presente */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Saldo Restante del Mes</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            🔮 Saldo Restante del Mes
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full transition-colors duration-200">
+                                Proyección
+                            </span>
+                        </CardTitle>
                     </CardHeader>
                     <div className="text-center py-6">
                         <p className={`text-2xl font-bold transition-colors duration-200 ${saldoRestante >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {formatCurrency(saldoRestante)}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors duration-200">
-                            {saldoRestante >= 0 ? 'Disponible para gastos' : 'Sobregiro del presupuesto'}
+                            {saldoRestante >= 0 ? 'Te quedará disponible para gastos' : 'Proyección de sobregiro'}
                         </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors duration-200">
+                            Solo considera ingresos/gastos del mes actual
+                        </p>
+
+                        {/* Botón para ver detalle */}
+                        <Button
+                            onClick={() => setShowDetalleModal(true)}
+                            variant="secondary"
+                            size="sm"
+                            className="mt-3"
+                        >
+                            Ver desglose detallado
+                        </Button>
 
                         {/* Barra de progreso */}
                         <div className="mt-4">
                             <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-1 transition-colors duration-200">
-                                <span>Gastado</span>
+                                <span>Progreso del mes</span>
                                 <span>{porcentajeGastado.toFixed(1)}%</span>
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 transition-colors duration-200">
@@ -455,12 +609,46 @@ export default function Dashboard() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Estado de Tarjetas</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            💰 Saldo Real Actual
+                            <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 px-2 py-1 rounded-full transition-colors duration-200">
+                                Presente
+                            </span>
+                        </CardTitle>
                     </CardHeader>
-                    <div className="space-y-4">
-                        <p className="text-gray-500 dark:text-gray-400 text-center py-4 transition-colors duration-200">
-                            Módulo de tarjetas en desarrollo
+                    <div className="text-center py-6">
+                        <p className={`text-2xl font-bold transition-colors duration-200 ${saldoRealActual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {formatCurrency(saldoRealActual)}
                         </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors duration-200">
+                            {saldoRealActual >= 0 ? 'Dinero disponible ahora mismo' : 'Saldo negativo actual'}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors duration-200">
+                            Saldo de cuentas + movimientos confirmados
+                        </p>
+
+                        {/* Desglose del saldo real */}
+                        <div className="mt-4 space-y-2">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-gray-600 dark:text-gray-400 transition-colors duration-200">Saldo inicial cuentas:</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">{formatCurrency(totalCuentas)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-green-600 dark:text-green-400 transition-colors duration-200">+ Ingresos confirmados:</span>
+                                <span className="font-medium text-green-600 dark:text-green-400 transition-colors duration-200">+{formatCurrency(totalIngresos)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-red-600 dark:text-red-400 transition-colors duration-200">- Gastos confirmados:</span>
+                                <span className="font-medium text-red-600 dark:text-red-400 transition-colors duration-200">-{formatCurrency(totalGastosFijos + totalGastosAdicionales)}</span>
+                            </div>
+                            <hr className="border-gray-200 dark:border-gray-600 transition-colors duration-200" />
+                            <div className="flex justify-between text-sm font-semibold">
+                                <span className="text-gray-900 dark:text-gray-100 transition-colors duration-200">Saldo real:</span>
+                                <span className={`transition-colors duration-200 ${saldoRealActual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    {formatCurrency(saldoRealActual)}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </Card>
             </div>
@@ -553,6 +741,198 @@ export default function Dashboard() {
                     ))}
                 </div>
             </Card>
+
+            {/* Modal de desglose del saldo restante */}
+            <Modal 
+                isOpen={showDetalleModal} 
+                onClose={() => setShowDetalleModal(false)}
+            >
+                    <div className="max-w-2xl mx-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Calendar className="w-5 h-5" />
+                                Desglose del Saldo Restante del Mes
+                            </h2>
+                            <Button
+                                onClick={() => setShowDetalleModal(false)}
+                                variant="secondary"
+                                size="sm"
+                            >
+                                <X className="w-4 h-4 mr-1" />
+                                Cerrar
+                            </Button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {/* Saldo inicial */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                                <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2 flex items-center gap-2">
+                                    <Wallet className="w-4 h-4" />
+                                    Saldo Base en Cuentas
+                                </h3>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">Total en cuentas</span>
+                                    <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                        +{formatCurrency(totalCuentas)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Ingresos esperados del mes */}
+                            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                                <h3 className="text-sm font-semibold text-green-800 dark:text-green-200 mb-2 flex items-center gap-2">
+                                    <TrendingUp className="w-4 h-4" />
+                                    Ingresos Esperados del Mes
+                                </h3>
+                                <div className="space-y-1.5">
+                                    {datosFinancieros.ingresos
+                                        .filter(ing => ing.fecha.slice(0, 7) === (filtroMes || new Date().toISOString().slice(0, 7)))
+                                        .map(ingreso => (
+                                            <div key={ingreso.id} className="flex justify-between items-center">
+                                                <div className="flex-1">
+                                                    <span className="text-sm text-gray-700 dark:text-gray-300">{ingreso.concepto}</span>
+                                                    <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                                        ingreso.estado === 'PAGADO' 
+                                                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                                            : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
+                                                    }`}>
+                                                        {ingreso.estado === 'PAGADO' ? (
+                                                            <CheckCircle className="w-3 h-3" />
+                                                        ) : (
+                                                            <Clock className="w-3 h-3" />
+                                                        )}
+                                                        {ingreso.estado}
+                                                    </span>
+                                                </div>
+                                                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                                    +{formatCurrency(typeof ingreso.monto === 'string' ? parseFloat(ingreso.monto) : ingreso.monto)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    <div className="border-t border-green-200 dark:border-green-700 pt-2 mt-2">
+                                        <div className="flex justify-between items-center font-semibold">
+                                            <span className="text-sm text-green-800 dark:text-green-200">Subtotal Ingresos:</span>
+                                            <span className="text-sm text-green-600 dark:text-green-400">
+                                                +{formatCurrency(totalIngresosDelMes)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+            {/* Todos los gastos del mes */}
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                <h3 className="text-sm font-semibold text-red-800 dark:text-red-200 mb-2 flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4" />
+                    Gastos del Mes (Pagados y Pendientes)
+                </h3>
+                <div className="space-y-1.5">
+                    {/* Gastos fijos del mes */}
+                    {datosFinancieros.gastosFijos
+                        .filter(gasto => gasto.fecha.slice(0, 7) === (filtroMes || new Date().toISOString().slice(0, 7)))
+                        .map(gasto => (
+                            <div key={`fijo-${gasto.id}`} className="flex justify-between items-center">
+                                <div className="flex-1">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{gasto.concepto}</span>
+                                    <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                        gasto.estado === 'PAGADO' 
+                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                                            : 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
+                                    }`}>
+                                        {gasto.estado === 'PAGADO' ? (
+                                            <CheckCircle className="w-3 h-3" />
+                                        ) : (
+                                            <Clock className="w-3 h-3" />
+                                        )}
+                                        {gasto.estado} - Fijo
+                                    </span>
+                                </div>
+                                <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                    -{formatCurrency(typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto)}
+                                </span>
+                            </div>
+                        ))}
+                    
+
+                    
+                    {/* Gastos adicionales del mes */}
+                    {datosFinancieros.gastosAdicionales
+                        .filter(gasto => gasto.fecha.slice(0, 7) === (filtroMes || new Date().toISOString().slice(0, 7)))
+                        .map(gasto => (
+                            <div key={`adicional-${gasto.id}`} className="flex justify-between items-center">
+                                <div className="flex-1">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">{gasto.concepto}</span>
+                                    <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                        gasto.estado === 'PAGADO' 
+                                            ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                                            : 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
+                                    }`}>
+                                        {gasto.estado === 'PAGADO' ? (
+                                            <CheckCircle className="w-3 h-3" />
+                                        ) : (
+                                            <Clock className="w-3 h-3" />
+                                        )}
+                                        {gasto.estado} - Adicional
+                                    </span>
+                                </div>
+                                <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                    -{formatCurrency(typeof gasto.monto === 'string' ? parseFloat(gasto.monto) : gasto.monto)}
+                                </span>
+                            </div>
+                        ))}
+                    
+                    <div className="border-t border-red-200 dark:border-red-700 pt-2 mt-2">
+                        <div className="flex justify-between items-center font-semibold">
+                            <span className="text-sm text-red-800 dark:text-red-200">Total Gastos del Mes:</span>
+                            <span className="text-sm text-red-600 dark:text-red-400">
+                                -{formatCurrency(totalGastosFijosDelMes + totalGastosAdicionalesDelMes)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                            {/* Resultado final */}
+                            <div className={`rounded-lg p-4 border-2 ${
+                                saldoRestante >= 0 
+                                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
+                                    : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+                            }`}>
+                                <div className="text-center">
+                                    <h3 className={`text-base font-bold mb-2 flex items-center justify-center gap-2 ${
+                                        saldoRestante >= 0 
+                                            ? 'text-green-800 dark:text-green-200' 
+                                            : 'text-red-800 dark:text-red-200'
+                                    }`}>
+                                        <DollarSign className="w-5 h-5" />
+                                        {filtroMes ? 'Saldo Acumulado Final' : 'Saldo Restante Final'}
+                                    </h3>
+                                    <p className={`text-2xl font-bold ${
+                                        saldoRestante >= 0 
+                                            ? 'text-green-600 dark:text-green-400' 
+                                            : 'text-red-600 dark:text-red-400'
+                                    }`}>
+                                        {formatCurrency(saldoRestante)}
+                                    </p>
+                                    <p className={`text-xs mt-2 ${
+                                        saldoRestante >= 0 
+                                            ? 'text-green-700 dark:text-green-300' 
+                                            : 'text-red-700 dark:text-red-300'
+                                    }`}>
+                                        {filtroMes 
+                                            ? (saldoRestante >= 0 
+                                                ? 'Saldo acumulado positivo incluyendo meses anteriores' 
+                                                : 'Déficit acumulado - considera ajustar gastos futuros')
+                                            : (saldoRestante >= 0 
+                                                ? 'Te quedará disponible para gastos adicionales' 
+                                                : 'Proyección de déficit - revisa tus gastos')
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Modal>
         </div>
     );
 }

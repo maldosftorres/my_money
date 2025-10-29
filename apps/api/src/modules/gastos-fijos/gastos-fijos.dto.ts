@@ -58,6 +58,62 @@ export class CrearGastoFijoDto {
   @IsOptional()
   @IsString()
   notas?: string;
+
+  // Campos específicos para préstamos
+  @IsOptional()
+  @IsBoolean()
+  es_prestamo?: boolean = false; // Indica si es un préstamo
+
+  @IsOptional()
+  @IsInt()
+  total_cuotas?: number; // Número total de cuotas del préstamo
+
+  @IsOptional()
+  @IsInt()
+  cuota_actual?: number; // Número de cuota actual (1, 2, 3, etc.)
+
+  @IsOptional()
+  @IsString()
+  descripcion_prestamo?: string; // Descripción adicional del préstamo
+
+  // Campos específicos para ahorros
+  @IsOptional()
+  @IsBoolean()
+  es_ahorro?: boolean = false; // Indica si es un ahorro
+
+  @IsOptional()
+  @IsInt()
+  meses_objetivo?: number; // Número total de meses objetivo para el ahorro
+
+  @IsOptional()
+  @IsInt()
+  mes_actual?: number; // Mes actual del ahorro (1, 2, 3, etc.)
+
+  @IsOptional()
+  @IsDecimal({ decimal_digits: '2' })
+  monto_ya_ahorrado?: string; // Monto acumulado ya ahorrado
+
+  // Validación personalizada para evitar conflictos entre tipos
+  constructor(data?: Partial<CrearGastoFijoDto>) {
+    if (data) {
+      Object.assign(this, data);
+      
+      // Validar que no sea recurrente y préstamo al mismo tiempo
+      if (this.es_recurrente && this.es_prestamo) {
+        throw new Error('Un gasto no puede ser recurrente y préstamo al mismo tiempo');
+      }
+      
+      // Validar que no sea recurrente y ahorro al mismo tiempo
+      if (this.es_recurrente && this.es_ahorro) {
+        throw new Error('Un gasto no puede ser recurrente y ahorro al mismo tiempo');
+      }
+      
+      // Validar que no sea préstamo y ahorro al mismo tiempo
+      if (this.es_prestamo && this.es_ahorro) {
+        throw new Error('Un gasto no puede ser préstamo y ahorro al mismo tiempo');
+      }
+    }
+  }
 }
 
 export class ActualizarGastoFijoDto {
@@ -112,6 +168,40 @@ export class ActualizarGastoFijoDto {
   @IsOptional()
   @IsString()
   notas?: string;
+
+  // Campos específicos para préstamos
+  @IsOptional()
+  @IsBoolean()
+  es_prestamo?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  total_cuotas?: number;
+
+  @IsOptional()
+  @IsInt()
+  cuota_actual?: number;
+
+  @IsOptional()
+  @IsString()
+  descripcion_prestamo?: string;
+
+  // Campos específicos para ahorros
+  @IsOptional()
+  @IsBoolean()
+  es_ahorro?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  meses_objetivo?: number;
+
+  @IsOptional()
+  @IsInt()
+  mes_actual?: number;
+
+  @IsOptional()
+  @IsDecimal({ decimal_digits: '2' })
+  monto_ya_ahorrado?: string;
 }
 
 export interface GastoFijoResponse {
@@ -137,4 +227,14 @@ export interface GastoFijoResponse {
   categoria_nombre?: string;
   proximo_pago?: string;
   dias_hasta_vencimiento?: number;
+  // Campos específicos para préstamos
+  es_prestamo?: boolean;
+  total_cuotas?: number;
+  cuota_actual?: number;
+  descripcion_prestamo?: string;
+  // Campos específicos para ahorros
+  es_ahorro?: boolean;
+  meses_objetivo?: number;
+  mes_actual?: number;
+  monto_ya_ahorrado?: string;
 }

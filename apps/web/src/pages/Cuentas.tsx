@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input } from '../components/ui';
+import { Card, CardHeader, CardTitle, Button, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Input, MetricCard } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, DollarSign, CheckCircle, Edit, Trash2 } from 'lucide-react';
+import { Building2, DollarSign, CheckCircle, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { notifications } from '../utils/notifications';
 
 interface Cuenta {
     id: number;
     usuario_id: number;
     nombre: string;
-    tipo: 'EFECTIVO' | 'BANCO' | 'TARJETA' | 'AHORRO' | 'OTRA';
+    tipo: 'EFECTIVO' | 'BANCO' | 'TARJETA' | 'AHORRO' | 'COOPERATIVA' | 'OTRA';
     saldo_inicial: string;
     saldo_actual?: number;
     moneda: string;
@@ -22,6 +22,7 @@ interface FormData {
     tipo: Cuenta['tipo'];
     saldo_inicial: string;
     moneda: string;
+    activa: boolean;
 }
 
 export default function Cuentas() {
@@ -34,7 +35,8 @@ export default function Cuentas() {
         nombre: '',
         tipo: 'BANCO',
         saldo_inicial: '',
-        moneda: 'Gs'
+        moneda: 'Gs',
+        activa: true
     });
 
     useEffect(() => {
@@ -80,6 +82,7 @@ export default function Cuentas() {
             'BANCO': 'Banco',
             'TARJETA': 'Tarjeta',
             'AHORRO': 'Ahorro',
+            'COOPERATIVA': 'Cooperativa',
             'OTRA': 'Otra'
         };
         return labels[tipo as keyof typeof labels] || tipo;
@@ -91,6 +94,7 @@ export default function Cuentas() {
             'BANCO': 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
             'TARJETA': 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
             'AHORRO': 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
+            'COOPERATIVA': 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
             'OTRA': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
         };
         return colors[tipo as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
@@ -102,7 +106,8 @@ export default function Cuentas() {
             nombre: cuenta.nombre,
             tipo: cuenta.tipo,
             saldo_inicial: cuenta.saldo_inicial,
-            moneda: cuenta.moneda
+            moneda: cuenta.moneda,
+            activa: cuenta.activa
         });
         setIsModalOpen(true);
     };
@@ -113,7 +118,8 @@ export default function Cuentas() {
             nombre: '',
             tipo: 'BANCO',
             saldo_inicial: '',
-            moneda: 'Gs'
+            moneda: 'Gs',
+            activa: true
         });
         setIsModalOpen(true);
     };
@@ -188,6 +194,40 @@ export default function Cuentas() {
         }
     };
 
+    const handleToggleStatus = async (cuenta: Cuenta) => {
+        const action = cuenta.activa ? 'desactivar' : 'activar';
+        const result = await notifications.confirm(
+            `¿Estás seguro de que quieres ${action} la cuenta "${cuenta.nombre}"?`,
+            `${action.charAt(0).toUpperCase() + action.slice(1)} cuenta`,
+            `Sí, ${action}`,
+            'Cancelar'
+        );
+        
+        if (result.isConfirmed) {
+            try {
+                notifications.loading(`${action.charAt(0).toUpperCase() + action.slice(1)}ando cuenta...`);
+                
+                const response = await fetch(`/api/v1/cuentas/${cuenta.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activa: !cuenta.activa })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error al ${action} la cuenta`);
+                }
+
+                notifications.close();
+                notifications.toast.success(`Cuenta ${cuenta.activa ? 'desactivada' : 'activada'} correctamente`);
+                await loadCuentas();
+            } catch (err) {
+                notifications.close();
+                const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+                notifications.error(errorMessage, `Error al ${action} cuenta`);
+            }
+        }
+    };
+
     const totalSaldo = cuentas.reduce((sum, cuenta) => sum + (cuenta.saldo_actual || 0), 0);
     const cuentasActivas = cuentas.filter(cuenta => cuenta.activa).length;
 
@@ -215,47 +255,29 @@ export default function Cuentas() {
 
             {/* Resumen */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Saldo Total</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{formatCurrency(totalSaldo)}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Saldo Total"
+                    value={formatCurrency(totalSaldo)}
+                    icon={<DollarSign className="w-5 h-5" />}
+                    iconColor="blue"
+                    valueColor="default"
+                />
 
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Cuentas Activas</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{cuentasActivas}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Cuentas Activas"
+                    value={cuentasActivas}
+                    icon={<CheckCircle className="w-5 h-5" />}
+                    iconColor="green"
+                    valueColor="default"
+                />
 
-                <Card>
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center transition-colors duration-200">
-                                <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                            </div>
-                        </div>
-                        <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 transition-colors duration-200">Total Cuentas</p>
-                            <p className="text-2xl font-semibold text-gray-900 dark:text-white transition-colors duration-200">{cuentas.length}</p>
-                        </div>
-                    </div>
-                </Card>
+                <MetricCard
+                    title="Total Cuentas"
+                    value={cuentas.length}
+                    icon={<Building2 className="w-5 h-5" />}
+                    iconColor="purple"
+                    valueColor="default"
+                />
             </div>
 
             {/* Lista de Cuentas */}
@@ -311,6 +333,18 @@ export default function Cuentas() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
+                                                    onClick={() => handleToggleStatus(cuenta)}
+                                                    className={`${cuenta.activa 
+                                                        ? 'text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20' 
+                                                        : 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20'
+                                                    }`}
+                                                    title={cuenta.activa ? 'Desactivar cuenta' : 'Activar cuenta'}
+                                                >
+                                                    {cuenta.activa ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
                                                     onClick={() => handleDeleteCuenta(cuenta)}
                                                     className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                 >
@@ -356,6 +390,7 @@ export default function Cuentas() {
                             <option value="BANCO">Banco</option>
                             <option value="TARJETA">Tarjeta</option>
                             <option value="AHORRO">Ahorro</option>
+                            <option value="COOPERATIVA">Cooperativa</option>
                             <option value="OTRA">Otra</option>
                         </select>
                     </div>
@@ -376,6 +411,19 @@ export default function Cuentas() {
                         placeholder="CLP"
                         required
                     />
+
+                    <div className="flex items-center space-x-3">
+                        <input
+                            type="checkbox"
+                            id="activa"
+                            checked={formData.activa}
+                            onChange={(e) => setFormData({ ...formData, activa: e.target.checked })}
+                            className="w-4 h-4 text-primary-600 bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:focus:ring-primary-400 focus:ring-2 transition-colors duration-200"
+                        />
+                        <label htmlFor="activa" className="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200">
+                            Cuenta activa
+                        </label>
+                    </div>
 
                     <div className="flex justify-end space-x-3 pt-4">
                         <Button
