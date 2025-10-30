@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, Button, MetricCard, Modal } from '../components/ui';
 import { notifications } from '../utils/notifications';
-import {  DollarSign,  Home,  ShoppingCart,  Wallet,  TrendingUp,  TrendingDown,  Calendar,  CheckCircle,  Clock,  X } from 'lucide-react';
+import {  DollarSign,  Home,  ShoppingCart,  Wallet,  TrendingUp,  TrendingDown,  Calendar,  CheckCircle,  Clock,  X,  CreditCard,  Plus,  Minus } from 'lucide-react';
 
 // Interfaces para los datos reales de la BD
 interface Cuenta {
@@ -68,11 +68,37 @@ interface GastoAdicional {
     categoria_nombre?: string;
 }
 
+interface Tarjeta {
+    id: number;
+    usuario_id: number;
+    cuenta_id: number;
+    nombre: string;
+    tipo: 'CREDITO' | 'DEBITO' | 'VIRTUAL' | 'PREPAGA';
+    limite: number | null;
+    saldo_utilizado: number;
+    saldo_disponible: number | null;
+    porcentaje_utilizado: number;
+    moneda: string;
+    activa: boolean;
+    cuenta_asociada_nombre?: string;
+}
+
 interface DatosFinancieros {
     cuentas: Cuenta[];
     ingresos: Ingreso[];
     gastosFijos: GastoFijo[];
     gastosAdicionales: GastoAdicional[];
+    tarjetas: Tarjeta[];
+}
+
+interface ResumenMes {
+    mes: string;
+    total_ingresos: number;
+    total_gastos_fijos: number;
+    total_gastos_adicionales: number;
+    total_gastos_tarjetas: number;
+    total_pagos_tarjetas: number;
+    saldo_proyectado: number;
 }
 
 export default function Dashboard() {
@@ -80,11 +106,13 @@ export default function Dashboard() {
         cuentas: [],
         ingresos: [],
         gastosFijos: [],
-        gastosAdicionales: []
+        gastosAdicionales: [],
+        tarjetas: []
     });
     const [loading, setLoading] = useState(true);
     const [filtroMes, setFiltroMes] = useState<string>(new Date().toISOString().slice(0, 7));
     const [showDetalleModal, setShowDetalleModal] = useState(false);
+    const [resumenDelMes, setResumenDelMes] = useState<ResumenMes | null>(null);
 
     useEffect(() => {
         loadAllData();
@@ -97,7 +125,9 @@ export default function Dashboard() {
                 loadCuentas(),
                 loadIngresos(),
                 loadGastosFijos(),
-                loadGastosAdicionales()
+                loadGastosAdicionales(),
+                loadTarjetas(),
+                loadResumenDelMes(filtroMes)
             ]);
         } catch (error) {
             console.error('Error al cargar datos del dashboard:', error);
@@ -171,6 +201,27 @@ export default function Dashboard() {
         }
     };
 
+    const loadTarjetas = async () => {
+        try {
+            const response = await fetch('/api/v1/tarjetas?usuario_id=1');
+            const data = await response.json();
+            console.log('Tarjetas cargadas desde API:', data);
+            setDatosFinancieros(prev => ({ ...prev, tarjetas: data }));
+        } catch (error) {
+            console.error('Error al cargar tarjetas:', error);
+        }
+    };
+
+    const loadResumenDelMes = async (mes: string) => {
+        try {
+            const response = await fetch(`/api/v1/reportes/resumen/1?mes=${mes}`);
+            const data = await response.json();
+            console.log('Resumen del mes cargado desde API:', data);
+            setResumenDelMes(data);
+        } catch (error) {
+            console.error('Error al cargar resumen del mes:', error);
+        }
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('es-PY', {
@@ -226,10 +277,12 @@ export default function Dashboard() {
         return sum;
     }, 0);
     
-    const totalCuentas = datosFinancieros.cuentas.reduce((sum, cuenta) => {
-        const saldo = typeof cuenta.saldo_inicial === 'string' ? parseFloat(cuenta.saldo_inicial) : cuenta.saldo_inicial;
-        return sum + (saldo || 0);
-    }, 0);
+    const totalCuentas = datosFinancieros.cuentas
+        .filter(cuenta => cuenta.activa) // Solo cuentas activas
+        .reduce((sum, cuenta) => {
+            const saldo = typeof cuenta.saldo_inicial === 'string' ? parseFloat(cuenta.saldo_inicial) : cuenta.saldo_inicial;
+            return sum + (saldo || 0);
+        }, 0);
     
     // CÁLCULOS PARA VISIÓN FUTURA (Saldo Restante del Mes)
     const mesActual = filtroMes || new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -268,6 +321,18 @@ export default function Dashboard() {
         }
         return sum;
     }, 0);
+
+    // CÁLCULOS PARA TARJETAS
+    const totalDeudasTarjetas = datosFinancieros.tarjetas.reduce((sum, tarjeta) => {
+        if (tarjeta.activa) {
+            const saldoUtilizado = typeof tarjeta.saldo_utilizado === 'string' ? 
+                parseFloat(tarjeta.saldo_utilizado) : tarjeta.saldo_utilizado;
+            return sum + (saldoUtilizado || 0);
+        }
+        return sum;
+    }, 0);
+
+    const tarjetasActivas = datosFinancieros.tarjetas.filter(t => t.activa).length;
     
     console.log(`Totales del mes ${mesActual}:`, {
         ingresos: totalIngresosDelMes,
@@ -367,9 +432,9 @@ export default function Dashboard() {
     
     const saldoAcumuladoAnterior = calcularSaldoAcumuladoAnterior();
     
-    // SALDO RESTANTE = Saldo base + Saldo acumulado anterior + (Ingresos del mes - Gastos del mes)
+    // SALDO RESTANTE = Saldo base + Saldo acumulado anterior + (Ingresos del mes - Gastos del mes - Deudas tarjetas)
     const saldoDelMesActual = totalIngresosDelMes - totalGastosFijosDelMes - totalGastosAdicionalesDelMes;
-    const saldoRestante = totalCuentas + saldoAcumuladoAnterior + saldoDelMesActual;
+    const saldoRestante = totalCuentas + saldoAcumuladoAnterior + saldoDelMesActual - totalDeudasTarjetas;
     
     console.log('Cálculo del saldo restante:', {
         totalCuentas,
@@ -380,7 +445,13 @@ export default function Dashboard() {
     });
     
     // CÁLCULOS PARA REALIDAD ACTUAL (Saldo Real)
-    const saldoRealActual = totalCuentas + totalIngresos - totalGastosFijos - totalGastosAdicionales;
+    // Saldo real = Solo la suma de todas las cuentas activas
+    const saldoRealActual = datosFinancieros.cuentas
+        .filter(cuenta => cuenta.activa) // Solo cuentas activas
+        .reduce((sum, cuenta) => {
+            const saldo = typeof cuenta.saldo_inicial === 'string' ? parseFloat(cuenta.saldo_inicial) : cuenta.saldo_inicial;
+            return sum + (saldo || 0);
+        }, 0);
     
     // Porcentaje para la barra de progreso (basado en ingresos del mes)
     const porcentajeGastado = totalIngresosDelMes > 0 ? ((totalGastosFijosDelMes + totalGastosAdicionalesDelMes) / totalIngresosDelMes) * 100 : 0;
@@ -509,7 +580,7 @@ export default function Dashboard() {
             </div>
 
             {/* Alerta de saldo */}
-            {porcentajeGastado > 80 && (
+            {porcentajeGastado >= 60 && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 transition-colors duration-200">
                     <div className="flex">
                         <svg className="w-5 h-5 text-yellow-400 dark:text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
@@ -528,7 +599,7 @@ export default function Dashboard() {
             )}
 
             {/* Resumen de totales */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 <MetricCard
                     title="Ingresos Confirmados"
                     value={formatCurrency(totalIngresos)}
@@ -555,6 +626,15 @@ export default function Dashboard() {
                     iconColor="red"
                     valueColor="red"
                 />
+
+                <MetricCard
+                    title="Deudas Tarjetas"
+                    value={formatCurrency(totalDeudasTarjetas)}
+                    subtitle={`${tarjetasActivas} tarjeta${tarjetasActivas !== 1 ? 's' : ''} activa${tarjetasActivas !== 1 ? 's' : ''}`}
+                    icon={<CreditCard className="w-5 h-5" />}
+                    iconColor="orange"
+                    valueColor="red"
+                />
             </div>
 
             {/* Análisis Financiero: Futuro vs Presente */}
@@ -569,7 +649,7 @@ export default function Dashboard() {
                         </CardTitle>
                     </CardHeader>
                     <div className="text-center py-6">
-                        <p className={`text-2xl font-bold transition-colors duration-200 ${saldoRestante >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <p className={`text-4xl font-bold transition-colors duration-200 ${saldoRestante >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {formatCurrency(saldoRestante)}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors duration-200">
@@ -597,8 +677,8 @@ export default function Dashboard() {
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 transition-colors duration-200">
                                 <div
-                                    className={`h-3 rounded-full transition-colors duration-200 ${porcentajeGastado > 100 ? 'bg-red-600 dark:bg-red-500' :
-                                            porcentajeGastado > 80 ? 'bg-yellow-600 dark:bg-yellow-500' : 'bg-green-600 dark:bg-green-500'
+                                    className={`h-3 rounded-full transition-colors duration-200 ${porcentajeGastado >= 80 ? 'bg-red-600 dark:bg-red-500' :
+                                            porcentajeGastado >= 60 ? 'bg-yellow-600 dark:bg-yellow-500' : 'bg-green-600 dark:bg-green-500'
                                         }`}
                                     style={{ width: `${Math.min(porcentajeGastado, 100)}%` }}
                                 />
@@ -617,38 +697,15 @@ export default function Dashboard() {
                         </CardTitle>
                     </CardHeader>
                     <div className="text-center py-6">
-                        <p className={`text-2xl font-bold transition-colors duration-200 ${saldoRealActual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <p className={`text-4xl font-bold transition-colors duration-200 ${saldoRealActual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {formatCurrency(saldoRealActual)}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 transition-colors duration-200">
-                            {saldoRealActual >= 0 ? 'Dinero disponible ahora mismo' : 'Saldo negativo actual'}
+                            {saldoRealActual >= 0 ? 'Suma total de cuentas activas' : 'Saldo negativo en cuentas'}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 transition-colors duration-200">
-                            Saldo de cuentas + movimientos confirmados
+                            Solo considera el saldo actual de las cuentas
                         </p>
-
-                        {/* Desglose del saldo real */}
-                        <div className="mt-4 space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span className="text-gray-600 dark:text-gray-400 transition-colors duration-200">Saldo inicial cuentas:</span>
-                                <span className="font-medium text-gray-900 dark:text-gray-100 transition-colors duration-200">{formatCurrency(totalCuentas)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-green-600 dark:text-green-400 transition-colors duration-200">+ Ingresos confirmados:</span>
-                                <span className="font-medium text-green-600 dark:text-green-400 transition-colors duration-200">+{formatCurrency(totalIngresos)}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-red-600 dark:text-red-400 transition-colors duration-200">- Gastos confirmados:</span>
-                                <span className="font-medium text-red-600 dark:text-red-400 transition-colors duration-200">-{formatCurrency(totalGastosFijos + totalGastosAdicionales)}</span>
-                            </div>
-                            <hr className="border-gray-200 dark:border-gray-600 transition-colors duration-200" />
-                            <div className="flex justify-between text-sm font-semibold">
-                                <span className="text-gray-900 dark:text-gray-100 transition-colors duration-200">Saldo real:</span>
-                                <span className={`transition-colors duration-200 ${saldoRealActual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {formatCurrency(saldoRealActual)}
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </Card>
             </div>
@@ -892,6 +949,63 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {/* Pagos de Tarjetas */}
+            {resumenDelMes && (resumenDelMes.total_gastos_tarjetas > 0 || resumenDelMes.total_pagos_tarjetas > 0) && (
+                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+                    <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-200 mb-2 flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        Tarjetas de Crédito
+                    </h3>
+                    <div className="space-y-1.5">
+                        {/* Gastos de tarjetas (nueva deuda) */}
+                        {resumenDelMes.total_gastos_tarjetas > 0 && (
+                            <div className="flex justify-between items-center">
+                                <div className="flex-1">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">Consumos del mes</span>
+                                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 inline-flex items-center gap-1">
+                                        <Plus className="w-3 h-3" />
+                                        Nueva Deuda
+                                    </span>
+                                </div>
+                                <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                    -{formatCurrency(resumenDelMes.total_gastos_tarjetas)}
+                                </span>
+                            </div>
+                        )}
+                        
+                        {/* Pagos de tarjetas (reducción de deuda) */}
+                        {resumenDelMes.total_pagos_tarjetas > 0 && (
+                            <div className="flex justify-between items-center">
+                                <div className="flex-1">
+                                    <span className="text-sm text-gray-700 dark:text-gray-300">Pagos realizados</span>
+                                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 inline-flex items-center gap-1">
+                                        <Minus className="w-3 h-3" />
+                                        Pago Deuda
+                                    </span>
+                                </div>
+                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                                    -{formatCurrency(resumenDelMes.total_pagos_tarjetas)}
+                                </span>
+                            </div>
+                        )}
+                        
+                        <div className="border-t border-orange-200 dark:border-orange-700 pt-2 mt-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-orange-700 dark:text-orange-300">
+                                    Impacto neto en saldo disponible:
+                                </span>
+                                <span className="text-xs font-medium text-orange-600 dark:text-orange-400">
+                                    -{formatCurrency(resumenDelMes.total_pagos_tarjetas)}
+                                </span>
+                            </div>
+                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                * Los pagos reducen tu saldo pero también tu deuda pendiente
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
                             {/* Resultado final */}
                             <div className={`rounded-lg p-4 border-2 ${
                                 saldoRestante >= 0 
@@ -907,7 +1021,7 @@ export default function Dashboard() {
                                         <DollarSign className="w-5 h-5" />
                                         {filtroMes ? 'Saldo Acumulado Final' : 'Saldo Restante Final'}
                                     </h3>
-                                    <p className={`text-2xl font-bold ${
+                                    <p className={`text-3xl font-bold ${
                                         saldoRestante >= 0 
                                             ? 'text-green-600 dark:text-green-400' 
                                             : 'text-red-600 dark:text-red-400'

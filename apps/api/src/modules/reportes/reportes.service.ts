@@ -19,7 +19,9 @@ export class ReportesService {
                 ? as mes,
                 COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN monto ELSE 0 END), 0) as total_ingresos,
                 COALESCE(SUM(CASE WHEN tipo = 'gasto_fijo' THEN monto ELSE 0 END), 0) as total_gastos_fijos,
-                COALESCE(SUM(CASE WHEN tipo = 'gasto_adicional' THEN monto ELSE 0 END), 0) as total_gastos_adicionales
+                COALESCE(SUM(CASE WHEN tipo = 'gasto_adicional' THEN monto ELSE 0 END), 0) as total_gastos_adicionales,
+                COALESCE(SUM(CASE WHEN tipo = 'gasto_tarjeta' THEN monto ELSE 0 END), 0) as total_gastos_tarjetas,
+                COALESCE(SUM(CASE WHEN tipo = 'pago_tarjeta' THEN monto ELSE 0 END), 0) as total_pagos_tarjetas
             FROM (
                 SELECT 'ingreso' as tipo, monto FROM ingresos 
                 WHERE usuario_id = ? AND DATE_FORMAT(fecha, '%Y-%m') = ? AND estado = 'PAGADO'
@@ -29,19 +31,31 @@ export class ReportesService {
                 UNION ALL
                 SELECT 'gasto_adicional' as tipo, monto FROM gastos_adicionales 
                 WHERE usuario_id = ? AND DATE_FORMAT(fecha, '%Y-%m') = ?
+                UNION ALL
+                SELECT 'gasto_tarjeta' as tipo, monto FROM movimientos
+                WHERE usuario_id = ? AND tipo = 'GASTO_TARJETA' AND DATE_FORMAT(fecha, '%Y-%m') = ?
+                UNION ALL
+                SELECT 'pago_tarjeta' as tipo, monto FROM movimientos
+                WHERE usuario_id = ? AND tipo = 'PAGO_TARJETA' AND DATE_FORMAT(fecha, '%Y-%m') = ?
             ) totales`,
-            [mes, usuarioId, mes, usuarioId, usuarioId, mes]
+            [mes, usuarioId, mes, usuarioId, usuarioId, mes, usuarioId, mes, usuarioId, mes]
         );
 
         const datos = resumen[0] || { 
             mes, 
             total_ingresos: 0, 
             total_gastos_fijos: 0, 
-            total_gastos_adicionales: 0 
+            total_gastos_adicionales: 0,
+            total_gastos_tarjetas: 0,
+            total_pagos_tarjetas: 0
         };
 
-        const totalGastos = parseFloat(datos.total_gastos_fijos || '0') + parseFloat(datos.total_gastos_adicionales || '0');
+        const totalGastos = parseFloat(datos.total_gastos_fijos || '0') + 
+                           parseFloat(datos.total_gastos_adicionales || '0') + 
+                           parseFloat(datos.total_gastos_tarjetas || '0');
         const totalIngresos = parseFloat(datos.total_ingresos || '0');
+        // Los pagos de tarjeta NO son ingresos, simplemente reducen la deuda pendiente
+        const totalPagosTarjetas = parseFloat(datos.total_pagos_tarjetas || '0');
         const saldoNeto = totalIngresos - totalGastos;
         const porcentajeAhorro = totalIngresos > 0 ? (saldoNeto / totalIngresos) * 100 : 0;
 
@@ -53,6 +67,8 @@ export class ReportesService {
             total_ingresos: totalIngresos,
             total_gastos_fijos: parseFloat(datos.total_gastos_fijos || '0'),
             total_gastos_adicionales: parseFloat(datos.total_gastos_adicionales || '0'),
+            total_gastos_tarjetas: parseFloat(datos.total_gastos_tarjetas || '0'),
+            total_pagos_tarjetas: parseFloat(datos.total_pagos_tarjetas || '0'),
             total_gastos: totalGastos,
             saldo_neto: saldoNeto,
             porcentaje_ahorro: Math.round(porcentajeAhorro * 100) / 100,

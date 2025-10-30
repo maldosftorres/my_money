@@ -3,6 +3,8 @@ export interface ResumenMesResponse {
   total_ingresos: number;
   total_gastos_fijos: number;
   total_gastos_adicionales: number;
+  total_gastos_tarjetas: number;
+  total_pagos_tarjetas: number;
   total_gastos: number;
   saldo_neto: number;
   porcentaje_ahorro: number;

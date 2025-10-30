@@ -9,7 +9,7 @@ import { GastosFijosModule } from './modules/gastos-fijos/gastos-fijos.module';
 import { GastosAdicionalesModule } from './modules/gastos-adicionales/gastos-adicionales.module';
 import { CategoriasGastoModule } from './modules/categorias-gasto/categorias-gasto.module';
 import { TarjetasModule } from './modules/tarjetas/tarjetas.module';
-import { ConsumosTarjetaModule } from './modules/consumos-tarjeta/consumos-tarjeta.module';
+
 import { MovimientosModule } from './modules/movimientos/movimientos.module';
 import { TransferenciasModule } from './modules/transferencias/transferencias.module';
 import { ReportesModule } from './modules/reportes/reportes.module';
@@ -29,7 +29,6 @@ import { ReportesModule } from './modules/reportes/reportes.module';
         GastosAdicionalesModule,
         CategoriasGastoModule,
         TarjetasModule,
-        ConsumosTarjetaModule,
         MovimientosModule,
         TransferenciasModule,
         ReportesModule,
