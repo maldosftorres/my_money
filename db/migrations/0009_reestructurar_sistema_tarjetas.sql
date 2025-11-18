@@ -1,7 +1,16 @@
 -- ============================
 -- Migración 0009: Completar Sistema de Tarjetas Modernizado
 -- ============================
--- NOTA: Tabla tarjetas ya está actualizada, completando movimientos y consumos
+
+-- Primero, modernizar la tabla tarjetas si no está actualizada
+ALTER TABLE tarjetas 
+ADD COLUMN IF NOT EXISTS tipo ENUM('DEBITO', 'CREDITO', 'VIRTUAL') NOT NULL DEFAULT 'CREDITO' AFTER nombre,
+ADD COLUMN IF NOT EXISTS limite DECIMAL(18,2) NULL AFTER tipo,
+ADD COLUMN IF NOT EXISTS saldo_utilizado DECIMAL(18,2) NOT NULL DEFAULT 0.00 AFTER limite,
+ADD COLUMN IF NOT EXISTS moneda VARCHAR(10) NOT NULL DEFAULT 'PYG' AFTER saldo_utilizado,
+ADD COLUMN IF NOT EXISTS numero_tarjeta VARCHAR(20) NULL AFTER moneda,
+ADD COLUMN IF NOT EXISTS banco_emisor VARCHAR(100) NULL AFTER numero_tarjeta,
+ADD COLUMN IF NOT EXISTS proximo_vencimiento DATE NULL AFTER banco_emisor;
 
 -- Eliminar tabla consumos_tarjeta
 SET FOREIGN_KEY_CHECKS = 0;
@@ -22,10 +31,21 @@ ALTER TABLE movimientos
 
 -- Agregar campo tarjeta_id a movimientos
 ALTER TABLE movimientos 
-  ADD COLUMN tarjeta_id INT NULL AFTER cuenta_destino_id;
+  ADD COLUMN IF NOT EXISTS tarjeta_id INT NULL AFTER cuenta_destino_id;
 
-ALTER TABLE movimientos 
-  ADD CONSTRAINT fk_movimientos_tarjeta FOREIGN KEY (tarjeta_id) REFERENCES tarjetas(id);
+-- Agregar foreign key solo si no existe
+SET @fk_exists = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+                 WHERE TABLE_SCHEMA = 'my_money' 
+                 AND TABLE_NAME = 'movimientos' 
+                 AND CONSTRAINT_NAME = 'fk_movimientos_tarjeta');
+
+SET @sql = IF(@fk_exists = 0, 
+    'ALTER TABLE movimientos ADD CONSTRAINT fk_movimientos_tarjeta FOREIGN KEY (tarjeta_id) REFERENCES tarjetas(id)', 
+    'SELECT "Foreign key already exists" AS info');
+
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- Actualizar vistas
 DROP VIEW IF EXISTS v_totales_mes;

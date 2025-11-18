@@ -8,14 +8,15 @@ export class CuentasService {
 
   async crear(crearCuentaDto: CrearCuentaDto): Promise<CuentaResponse> {
     const result = await this.databaseService.query(
-      `INSERT INTO cuentas (usuario_id, nombre, tipo, saldo_inicial, moneda)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO cuentas (usuario_id, nombre, tipo, saldo_inicial, moneda, activa)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         crearCuentaDto.usuario_id,
         crearCuentaDto.nombre,
         crearCuentaDto.tipo,
         crearCuentaDto.saldo_inicial,
         crearCuentaDto.moneda,
+        crearCuentaDto.activa ?? true,
       ]
     ) as any;
 

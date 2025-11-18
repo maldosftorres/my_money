@@ -27,6 +27,10 @@ export class CrearCuentaDto {
   @IsOptional()
   @IsString()
   moneda?: string = 'Gs';
+
+  @IsOptional()
+  @IsBoolean()
+  activa?: boolean = true;
 }
 
 export class ActualizarCuentaDto {
